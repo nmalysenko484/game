@@ -1,0 +1,2021 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05060f">
+<title>Орбита</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--fg:#eaf6ff;--dim:rgba(220,235,255,.6);--gold:#ffd75a}
+  html,body{margin:0;height:100%;background:#05060f;overflow:hidden;touch-action:none;
+    user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+    font-family:'Unbounded',system-ui,sans-serif;color:var(--fg)}
+  #c{display:block;position:fixed;inset:0;width:100vw;height:100vh;cursor:pointer}
+  .hidden{display:none!important}
+  @keyframes blink{50%{opacity:.35}}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;
+    padding:14px 16px;pointer-events:none;font-weight:700;text-shadow:0 0 12px rgba(120,200,255,.6)}
+  #hud .big{font-size:26px;font-weight:900}
+  #hud .lbl{font-size:10px;opacity:.6;letter-spacing:.2em;text-transform:uppercase;margin-top:2px}
+  #hud .hr{display:flex;gap:12px;align-items:flex-start;text-align:right}
+  .hcur{display:flex;gap:12px;justify-content:flex-end;margin-top:6px;font-size:13px}
+  .hcur .dl{color:#ffe27a}
+  #bPause{pointer-events:auto;width:44px;height:44px;border-radius:12px;border:1px solid rgba(160,200,255,.3);
+    background:rgba(255,255,255,.07);color:#fff;font:900 13px Unbounded,sans-serif;cursor:pointer}
+  #timer{position:fixed;left:50%;top:8px;transform:translateX(-50%);font-size:36px;font-weight:900;pointer-events:none;
+    text-shadow:0 0 16px rgba(120,220,255,.8)}
+  #timer.low{color:#ff6b8a;animation:blink .5s infinite;text-shadow:0 0 16px #ff3060}
+  #combo{position:fixed;left:50%;top:14px;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .2s}
+  body.sprint #combo{top:60px}
+  #combo.on{opacity:1}
+  #cx{font-size:20px;font-weight:900;color:#ffd75a;text-shadow:0 0 14px rgba(255,200,60,.8);white-space:nowrap}
+  #cbar{width:120px;height:4px;margin:6px auto 0;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden}
+  #cbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff8a3c,#ffe06a);border-radius:3px}
+  #banner{position:fixed;left:0;right:0;top:28%;text-align:center;pointer-events:none;opacity:0}
+  #banner .z{font-size:12px;letter-spacing:.5em;opacity:.7}
+  #banner .n{font-size:clamp(22px,5vw,44px);font-weight:900;letter-spacing:.06em;margin-top:8px;text-shadow:0 0 30px currentColor}
+  #banner.show{animation:ban 3.2s ease forwards}
+  @keyframes ban{0%{opacity:0;transform:translateY(14px) scale(.96)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+  #mute{position:fixed;right:16px;bottom:14px;font-size:10px;letter-spacing:.15em;color:rgba(220,235,255,.35);pointer-events:none}
+  #toast{position:fixed;left:50%;top:76px;transform:translateX(-50%);pointer-events:none;opacity:0;text-align:center;
+    padding:10px 18px;border-radius:12px;background:rgba(40,30,0,.65);border:1px solid rgba(255,215,90,.5);box-shadow:0 0 30px rgba(255,190,60,.35);max-width:90vw}
+  #toast .t1{font-size:10px;letter-spacing:.25em;color:#ffd75a}
+  #toast .t2{font-size:13px;font-weight:700;margin-top:4px}
+  #toast.show{animation:toast 2.8s ease forwards}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,-10px)}10%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}
+  .coin{display:inline-block;width:.95em;height:.95em;border-radius:50%;vertical-align:-.13em;
+    background:radial-gradient(circle at 35% 35%,#fff7c8,#ffd34a 42%,#d8950f);box-shadow:0 0 8px rgba(255,200,58,.8),inset 0 0 0 2px rgba(255,255,255,.35)}
+
+  /* ---------- panels ---------- */
+  #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;padding:16px}
+  .panel{pointer-events:auto;text-align:center;width:100%;max-width:600px;padding:26px 22px;border-radius:22px;box-sizing:border-box;
+    max-height:calc(100vh - 32px);overflow-y:auto;touch-action:pan-y;cursor:default;
+    background:rgba(6,8,24,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(140,190,255,.18);box-shadow:0 0 60px rgba(80,120,255,.15)}
+  .panel::-webkit-scrollbar{width:0}
+  .panel.wide{max-width:820px}
+  .panel.slim{max-width:420px}
+  .title{font-size:clamp(42px,10vw,78px);font-weight:900;letter-spacing:.08em;line-height:1;
+    background:linear-gradient(180deg,#fff 10%,#8fd8ff 55%,#a77bff);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 18px rgba(120,190,255,.55))}
+  .title.small{font-size:clamp(24px,6vw,38px);letter-spacing:.04em}
+  .sub{margin-top:12px;font-size:13px;letter-spacing:.12em;color:#bfe6ff}
+  .wallet{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 20px;margin-top:16px;font-size:12px;letter-spacing:.1em;color:var(--dim)}
+  .wallet b{color:#fff;font-size:17px}
+  .wallet .dust,.wallet .dust b{color:#ffe27a}
+  .wallet .coins b{color:#ffd34a}
+  .rankbar{display:inline-flex;gap:3px;margin-left:8px;vertical-align:middle}
+  .rankbar i{width:14px;height:5px;border-radius:3px;background:rgba(255,255,255,.15)}
+  .rankbar i.on{background:#8fd8ff;box-shadow:0 0 6px #8fd8ff}
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+  .mode{font:inherit;color:#fff;cursor:pointer;padding:12px 6px 10px;border-radius:14px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.1);transition:transform .08s}
+  .mode:active{transform:scale(.96)}
+  .mode.on{border-color:#8fd8ff;background:rgba(120,190,255,.12);box-shadow:0 0 18px rgba(120,190,255,.35)}
+  .mode.locked{opacity:.45}
+  .mode .mi{font-size:22px;font-weight:900;height:28px;line-height:28px}
+  .mode .mn{font-size:12px;font-weight:900;margin-top:4px}
+  .mode .md{font-size:9px;color:var(--dim);margin-top:5px;line-height:1.4}
+  .mode .mb{font-size:9px;color:#ffe27a;margin-top:5px;min-height:11px}
+  .btns{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+  .btn{font:inherit;font-weight:900;font-size:14px;letter-spacing:.12em;color:#fff;cursor:pointer;padding:14px 24px;border-radius:14px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(160,200,255,.3);transition:transform .08s,background .15s;position:relative}
+  .btn:hover{background:rgba(255,255,255,.12)}
+  .btn:active{transform:scale(.96)}
+  .btn.primary{background:linear-gradient(180deg,#5ab8ff,#6a5cff);border-color:transparent;box-shadow:0 0 24px rgba(100,140,255,.55)}
+  .btn.big{font-size:20px;padding:18px 64px;border-radius:18px}
+  .btn.xs{padding:8px 10px;font-size:10px;letter-spacing:.04em;border-radius:9px;min-width:78px}
+  .btn.wide{width:100%}
+  .btn.buy{background:linear-gradient(180deg,#ffd75a,#ff9a3c);color:#2a1400;border-color:transparent}
+  .btn.buy.coinbuy{background:linear-gradient(180deg,#fff0a0,#ffc02a);box-shadow:0 0 14px rgba(255,200,40,.5)}
+  .btn.poor{opacity:.4;cursor:not-allowed}
+  .btn.max{background:transparent;color:var(--dim);cursor:default}
+  .btn.sel{background:transparent;border-color:#8fd8ff;color:#8fd8ff;cursor:default}
+  .dot{position:absolute;top:-5px;right:-5px;width:13px;height:13px;border-radius:50%;background:#ffd75a;box-shadow:0 0 10px #ffb020;animation:blink .9s infinite}
+  .goal{margin:16px auto 0;max-width:420px;font-size:11px;color:var(--dim);letter-spacing:.04em;line-height:1.5}
+  .goal b{color:#fff}
+  .goal.ready{color:#ffd75a;font-weight:700;animation:blink 1.2s infinite}
+  .gbar{height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:6px;overflow:hidden}
+  .gbar i{display:block;height:100%;background:linear-gradient(90deg,#ffd75a,#ff9a3c)}
+  .ms{margin:14px auto 0;max-width:440px;text-align:left}
+  .ms .mh{font-size:10px;letter-spacing:.3em;color:var(--dim);text-align:center;margin-bottom:4px}
+  .mrow{display:flex;align-items:center;gap:10px;padding:7px 10px;margin-top:6px;border-radius:10px;background:rgba(255,255,255,.04);font-size:11px;line-height:1.3}
+  .mrow .mt{flex:1}
+  .mrow .mp{font-size:10px;color:var(--dim);white-space:nowrap}
+  .mrow .mr{font-size:10px;color:#ffe27a;white-space:nowrap}
+  .mrow .bar{height:3px;border-radius:2px;background:rgba(255,255,255,.1);margin-top:5px;overflow:hidden}
+  .mrow .bar i{display:block;height:100%;background:#8fd8ff}
+  .mrow.done{background:rgba(255,215,90,.12);box-shadow:inset 0 0 0 1px rgba(255,215,90,.35)}
+  .mrow.done .bar i{background:#ffd75a}
+  .mrow .ic{width:16px;text-align:center;font-weight:900;color:#8fd8ff}
+  .mrow.done .ic{color:#ffd75a}
+  .keys{margin-top:14px;font-size:9px;letter-spacing:.1em;color:rgba(220,235,255,.35)}
+  .rec{margin-top:12px;font-size:10px;letter-spacing:.12em;color:var(--dim)}
+  .tag{display:inline-block;margin-top:10px;font-size:10px;letter-spacing:.25em;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.08);color:var(--dim)}
+  .stats{display:flex;justify-content:center;gap:24px;margin-top:18px}
+  .stats b{display:block;font-size:28px;font-weight:900}
+  .stats span{font-size:9px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+  .newrec{margin-top:12px;font-weight:900;color:#ffd75a;letter-spacing:.2em;text-shadow:0 0 16px #ffb020;animation:blink .7s infinite}
+  .earn{margin-top:14px;font-size:24px;font-weight:900;color:#ffe27a;text-shadow:0 0 18px rgba(255,200,60,.7)}
+  .earnd{font-size:10px;letter-spacing:.06em;color:var(--dim);margin-top:4px}
+
+  /* ---------- shop ---------- */
+  .shophead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .shophead .wallet{margin:0}
+  .tabs{display:flex;gap:8px;margin:16px 0 14px}
+  .tab{flex:1;font:inherit;font-size:11px;font-weight:700;letter-spacing:.18em;color:var(--dim);background:transparent;border:0;
+    border-bottom:2px solid rgba(255,255,255,.1);padding:10px;cursor:pointer;position:relative}
+  .tab.on{color:#fff;border-color:#8fd8ff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;text-align:left}
+  .card{padding:14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:10px}
+  .card.ball{border-color:var(--rc);box-shadow:inset 0 0 26px -12px var(--rc)}
+  .card.r3{animation:leg 2.4s ease-in-out infinite}
+  @keyframes leg{50%{box-shadow:inset 0 0 34px -8px var(--rc),0 0 16px -4px var(--rc)}}
+  .card.sel{outline:2px solid #8fd8ff;outline-offset:2px}
+  .bhead{display:flex;gap:12px;align-items:center}
+  .pv{width:72px;height:72px;flex:none}
+  .cn{font-size:14px;font-weight:900}
+  .rar{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--rc);margin-top:5px;font-weight:700}
+  .cd{font-size:10px;line-height:1.5;color:var(--dim)}
+  .st{display:flex;gap:10px;align-items:center}
+  .sti{flex:1;min-width:0}
+  .stn{font-size:10px;font-weight:700;display:flex;justify-content:space-between;gap:6px}
+  .stn span{color:#8fd8ff;font-weight:400;font-size:9px;white-space:nowrap}
+  .pips{display:flex;gap:3px;margin-top:5px}
+  .pips i{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.12)}
+  .pips i.on{background:linear-gradient(90deg,#5ab8ff,#a77bff);box-shadow:0 0 6px rgba(120,160,255,.8)}
+  .tpv{height:78px;border-radius:12px;position:relative;overflow:hidden}
+  .tpv i{position:absolute;border-radius:50%;background:#fff;opacity:.7}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" class="hidden">
+  <div><div class="big" id="hH">0 м</div><div class="lbl">высота</div></div>
+  <div class="hr">
+    <div><div class="big" id="hS">0</div><div class="lbl">очки</div>
+      <div class="hcur"><span class="dl" id="hD">✦ 0</span><span><i class="coin"></i> <b id="hC">0</b></span></div></div>
+    <button id="bPause" aria-label="Пауза">II</button>
+  </div>
+</div>
+<div id="timer" class="hidden">60</div>
+<div id="combo"><div id="cx">ЦЕПЬ 2</div><div id="cbar"><i id="cbi"></i></div></div>
+<div id="banner"><div class="z" id="bz">ЗОНА 2</div><div class="n" id="bn">—</div></div>
+<div id="toast"><div class="t1" id="tt1"></div><div class="t2" id="tt2"></div></div>
+<div id="mute"></div>
+
+<div id="ov">
+  <div id="menu" class="panel">
+    <div class="title">ОРБИТА</div>
+    <div class="sub">зажми — цепляйся · отпусти — лети</div>
+    <div class="wallet">
+      <span class="dust">✦ <b class="dustv">0</b></span>
+      <span class="coins"><i class="coin"></i> <b class="coinv">0</b></span>
+      <span>РАНГ <b class="rankv">1</b><span class="rankbar"></span></span>
+    </div>
+    <div class="modes" id="modes"></div>
+    <div class="btns"><button class="btn primary big" id="bPlay">ИГРАТЬ</button></div>
+    <div class="btns">
+      <button class="btn" id="bBalls">ШАРИКИ<span class="dot dballs hidden"></span></button>
+      <button class="btn" id="bThemes">ФОНЫ<span class="dot dthemes hidden"></span></button>
+    </div>
+    <div class="goal" id="goal1"></div>
+    <div class="ms" id="ms1"></div>
+    <div class="keys">мышь · пробел · тап &nbsp;|&nbsp; M — звук &nbsp;|&nbsp; P — пауза</div>
+  </div>
+
+  <div id="over" class="panel hidden">
+    <div class="title small" id="dmsg">ПОГЛОЩЁН</div>
+    <div class="tag" id="otag"></div>
+    <div class="stats">
+      <div><b id="sS">0</b><span>очки</span></div>
+      <div><b id="sH">0</b><span>метров</span></div>
+      <div><b id="sC">0</b><span>макс. цепь</span></div>
+    </div>
+    <div class="newrec hidden" id="newrec">НОВЫЙ РЕКОРД</div>
+    <div class="earn" id="earn"></div>
+    <div class="earnd" id="earnd"></div>
+    <div class="btns">
+      <button class="btn primary" id="bAgain">ЕЩЁ РАЗ</button>
+      <button class="btn" id="bShop2">ШАРИКИ<span class="dot dballs hidden"></span></button>
+      <button class="btn" id="bMenu">МЕНЮ</button>
+    </div>
+    <div class="goal" id="goal2"></div>
+    <div class="ms" id="ms2"></div>
+    <div class="rec" id="rec2"></div>
+  </div>
+
+  <div id="shop" class="panel wide hidden">
+    <div class="shophead">
+      <div class="title small">МАГАЗИН</div>
+      <div class="wallet"><span class="dust">✦ <b class="dustv">0</b></span><span class="coins"><i class="coin"></i> <b class="coinv">0</b></span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab" data-tab="balls">ШАРИКИ<span class="dot dballs hidden"></span></button>
+      <button class="tab" data-tab="themes">ФОНЫ<span class="dot dthemes hidden"></span></button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="btns"><button class="btn" id="bBack">НАЗАД</button></div>
+  </div>
+
+  <div id="pausep" class="panel slim hidden">
+    <div class="title small">ПАУЗА</div>
+    <div class="btns"><button class="btn primary" id="bResume">ПРОДОЛЖИТЬ</button><button class="btn" id="bQuit">ЗАВЕРШИТЬ</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// =====================================================================
+//  CONSTANTS & DATA
+// =====================================================================
+const TAU = Math.PI * 2;
+const W = 720;                 // logical playfield width
+const GRAB = 210, G = 620, ORBIT_ACC = 230, MAXSPD = 1050, MAXFREE = 1500;
+const COMBO_TIME = 3.2, CRUMBLE_T = 1.25, BIOME_LEN = 400, SPRINT_TIME = 60;
+const BALL_R = 11;
+
+const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+
+const COL = {
+  normal: [110, 200, 255], boost: [255, 205, 70], crumble: [255, 120, 60], moving: [180, 140, 255],
+  mine: [255, 45, 85], white: [255, 255, 255], gold: [255, 215, 90], clock: [90, 230, 255], meteor: [255, 120, 40],
+};
+
+const THEMES = [
+  { id: 'space', name: 'Космос', cost: 0, style: 'stars', desc: 'Звёзды и туманности', zones: [
+    { name: 'Глубокий космос',    bg1: [5, 6, 18],  bg2: [16, 14, 46], neb: [70, 60, 210],  neb2: [20, 120, 210], voidc: [150, 50, 255], orb: [120, 230, 255] },
+    { name: 'Розовая туманность', bg1: [16, 4, 20], bg2: [54, 10, 48], neb: [255, 60, 160], neb2: [140, 40, 255], voidc: [255, 40, 130], orb: [255, 160, 225] },
+    { name: 'Изумрудный пояс',    bg1: [2, 14, 16], bg2: [6, 38, 36],  neb: [30, 220, 150], neb2: [20, 140, 220], voidc: [40, 255, 170], orb: [160, 255, 205] },
+    { name: 'Солнечный ветер',    bg1: [18, 8, 4],  bg2: [56, 22, 8],  neb: [255, 140, 40], neb2: [255, 60, 40],  voidc: [255, 110, 30], orb: [255, 225, 130] },
+    { name: 'Горизонт событий',   bg1: [2, 2, 4],   bg2: [22, 8, 14],  neb: [255, 40, 60],  neb2: [180, 180, 255], voidc: [255, 255, 255], orb: [255, 255, 255] },
+  ]},
+  { id: 'ocean', name: 'Глубины', cost: 10, style: 'bubbles', desc: 'Пузыри и морская бездна', zones: [
+    { name: 'Лагуна',          bg1: [2, 18, 36], bg2: [6, 52, 90],  neb: [40, 200, 255], neb2: [20, 120, 200], voidc: [60, 255, 220], orb: [170, 255, 240] },
+    { name: 'Коралловый риф',  bg1: [18, 8, 36], bg2: [52, 26, 80], neb: [255, 120, 160], neb2: [80, 200, 255], voidc: [255, 90, 150], orb: [255, 200, 220] },
+    { name: 'Бездна',          bg1: [1, 4, 12],  bg2: [4, 16, 40],  neb: [40, 80, 255],  neb2: [100, 40, 255], voidc: [120, 90, 255], orb: [150, 200, 255] },
+  ]},
+  { id: 'candy', name: 'Сладкий мир', cost: 20, style: 'candy', desc: 'Посыпка, зефир и карамель', zones: [
+    { name: 'Зефирные облака',   bg1: [44, 20, 60], bg2: [110, 56, 124], neb: [255, 170, 220], neb2: [170, 200, 255], voidc: [255, 120, 200], orb: [255, 240, 160] },
+    { name: 'Мятная долина',     bg1: [14, 46, 54], bg2: [40, 104, 104], neb: [150, 255, 220], neb2: [255, 200, 230], voidc: [100, 255, 200], orb: [255, 255, 255] },
+    { name: 'Карамельный закат', bg1: [54, 22, 16], bg2: [124, 58, 44],  neb: [255, 190, 120], neb2: [255, 120, 170], voidc: [255, 150, 80],  orb: [255, 250, 200] },
+  ]},
+  { id: 'synth', name: 'Синтвейв', cost: 35, style: 'grid', desc: 'Неоновое солнце и ретро-сетка', zones: [
+    { name: 'Неоновое шоссе', bg1: [10, 2, 30], bg2: [50, 10, 80],  neb: [255, 40, 200], neb2: [40, 200, 255], voidc: [255, 40, 200], orb: [80, 240, 255] },
+    { name: 'Ретро-закат',    bg1: [30, 4, 40], bg2: [100, 18, 84], neb: [255, 120, 60], neb2: [255, 40, 160], voidc: [255, 140, 40], orb: [255, 230, 120] },
+    { name: 'Киберночь',      bg1: [2, 4, 20],  bg2: [10, 20, 60],  neb: [60, 255, 200], neb2: [160, 60, 255], voidc: [60, 255, 180], orb: [200, 255, 240] },
+  ]},
+  { id: 'aurora', name: 'Сияние', cost: 50, style: 'aurora', desc: 'Северное сияние и снегопад', zones: [
+    { name: 'Полярная ночь',    bg1: [2, 8, 20],  bg2: [8, 28, 50],  neb: [60, 255, 160], neb2: [80, 160, 255],  voidc: [120, 255, 200], orb: [200, 255, 230] },
+    { name: 'Ледяные вершины',  bg1: [6, 10, 30], bg2: [20, 40, 80], neb: [120, 200, 255], neb2: [200, 120, 255], voidc: [160, 200, 255], orb: [230, 240, 255] },
+    { name: 'Розовый рассвет',  bg1: [20, 8, 30], bg2: [60, 30, 70], neb: [255, 120, 200], neb2: [120, 255, 200], voidc: [255, 140, 220], orb: [255, 220, 240] },
+  ]},
+];
+
+const RARITY = [
+  { name: 'обычный', c: '#a9bdd0' },
+  { name: 'редкий', c: '#5ab8ff' },
+  { name: 'эпический', c: '#b77bff' },
+  { name: 'легендарный', c: '#ffb238' },
+];
+// Every ball: own look, own perk, own upgrade track. Pricier = rarer = stronger.
+const BALLS = [
+  { id: 'spark',   name: 'Искорка',     rar: 0, cur: 'dust', cost: 0,    look: 'basic',   c: [190, 240, 255], c2: [110, 190, 255],
+    perk: 'Твоя первая подружка. Простая и весёлая.', fx: {} },
+  { id: 'ember',   name: 'Уголёк',      rar: 1, cur: 'dust', cost: 400,  look: 'fire',    c: [255, 170, 70],  c2: [255, 80, 30],
+    perk: 'Огненный хвост. Цепь держится на 1 с дольше.', fx: { chain: 1 } },
+  { id: 'slime',   name: 'Слаймик',     rar: 1, cur: 'dust', cost: 1000, look: 'slime',   c: [140, 255, 130], c2: [40, 190, 90],
+    perk: 'Раз за забег отпрыгивает от пустоты. Пружинит от стен.', fx: { rescue: 1, bouncy: 1 } },
+  { id: 'volt',    name: 'Вольт',       rar: 2, cur: 'dust', cost: 2200, look: 'volt',    c: [255, 245, 130], c2: [120, 200, 255],
+    perk: 'Встроенный магнит для искр и +30% искр.', fx: { magnet: 2, dust: 0.3 } },
+  { id: 'ghost',   name: 'Призрачок',   rar: 2, cur: 'coin', cost: 20,   look: 'ghost',   c: [225, 215, 255], c2: [150, 130, 255],
+    perk: 'Раз в 12 секунд пролетает сквозь мину или метеорит.', fx: { phase: 12 } },
+  { id: 'goldie',  name: 'Голди',       rar: 3, cur: 'dust', cost: 5000, look: 'gold',    c: [255, 215, 90],  c2: [230, 140, 30],
+    perk: '+60% искр, а монеты сами летят к тебе.', fx: { dust: 0.6, coinMag: 1 } },
+  { id: 'unicorn', name: 'Единорожка',  rar: 3, cur: 'coin', cost: 50,   look: 'rainbow', c: null, c2: null,
+    perk: 'Старт со щитом и новый щит каждые 300 м. +20% искр.', fx: { shield: 1, regen: 300, dust: 0.2 } },
+  { id: 'hole',    name: 'Чёрная дыра', rar: 3, cur: 'coin', cost: 120,  look: 'hole',    c: [190, 120, 255], c2: [255, 130, 60],
+    perk: 'Ест мины и метеориты (раз в 6 с), огромный магнит, катапульта.', fx: { eat: 6, magnet: 3, coinMag: 1, rescue: 1, dust: 0.4 } },
+];
+const STATS = [
+  { id: 'rope',   name: 'Трос',   val: (l) => `+${l * 18} захват` },
+  { id: 'engine', name: 'Форсаж', val: (l) => `+${l * 15}% разгон` },
+  { id: 'magnet', name: 'Магнит', val: (l, b) => { const m = Math.min(8, (b.fx.magnet || 0) + l); return m ? `радиус ${60 + m * 35}` : 'нет'; } },
+];
+const UP_COST = [40, 100, 200, 350, 550];
+const upCost = (b, l) => Math.round(UP_COST[l] * (1 + BALLS.indexOf(b) * 0.45) / 5) * 5;
+
+const MODES = [
+  { id: 'classic', name: 'Классика', icon: '∞',  desc: 'Лети вверх, пока пустота не догнала' },
+  { id: 'sprint',  name: 'Спринт',   icon: '60', desc: '60 секунд. Падать не страшно!' },
+  { id: 'storm',   name: 'Шторм',    icon: '☄',  desc: 'Метеориты! Монет вдвое больше', unlockH: 300 },
+];
+
+const MT = {
+  height:  { t: n => `Поднимись на ${n} м`,                  n: t => 150 + 100 * t,            run: R => R.h },
+  orbs:    { t: n => `Собери ${n} искр за забег`,            n: t => 20 + 10 * t,              run: R => R.orbs },
+  combo:   { t: n => `Сделай цепь ×${n}`,                     n: t => 8 + 3 * t,                run: R => R.combo },
+  near:    { t: n => `Пролети на волоске ×${n} за забег`,    n: t => 2 + t,                    run: R => R.near },
+  boost:   { t: n => `Золотые звёзды ×${n} за забег`,        n: t => 3 + t,                    run: R => R.boost },
+  crumble: { t: n => `Рассыпающиеся звёзды ×${n} за забег`,  n: t => 3 + t,                    run: R => R.crumble },
+  zone:    { t: n => `Доберись до зоны ${n}`,                n: t => 2 + Math.floor(t / 2),    run: R => R.zone },
+  coins:   { t: n => `Подбери монеты ×${n} за забег`,        n: t => 1 + Math.floor(t / 3),    run: R => R.coins },
+  total:   { t: n => `Собери ${n} искр (за все забеги)`,     n: t => 100 + 60 * t, cum: 'orbs', run: R => R.orbs },
+  runs:    { t: n => `Сыграй забегов: ${n}`,                 n: t => 3 + t,        cum: 'runs', run: R => R.played },
+};
+const DEATH_MSG = {
+  void:   ['ПОГЛОЩЁН ПУСТОТОЙ', 'ТЬМА БЫЛА БЫСТРЕЕ', 'СЛИШКОМ МЕДЛЕННО', 'ПУСТОТА ГОЛОДНА'],
+  mine:   ['БУМ.', 'РАЗОРВАН НА КВАРКИ', 'МИНА НЕ ПРОСТИЛА', 'НЕ ТУДА СВЕРНУЛ'],
+  meteor: ['МЕТЕОРИТ!', 'ПРЯМОЕ ПОПАДАНИЕ', 'КОСМИЧЕСКИЙ БУМ'],
+  time:   ['ФИНИШ!', 'ВРЕМЯ ВЫШЛО!'],
+  quit:   ['ЗАБЕГ ЗАВЕРШЁН'],
+};
+
+// =====================================================================
+//  CANVAS, QUALITY, CACHES
+// =====================================================================
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let DPR = 1, CW = 1, CH = 1, S = 1, OX = 0, VH = 820;
+let Q = 2;                       // quality 0..2, lowered automatically if frames get slow
+const gradCache = new Map();
+let vigCv = null;
+(function initQuality() {
+  const dpr = window.devicePixelRatio || 1;
+  if ((innerWidth || 1) * (innerHeight || 1) * dpr * dpr > 4.5e6) Q = 1;   // very large hi-dpi screens
+})();
+function resize() {
+  CW = Math.max(1, window.innerWidth || 1); CH = Math.max(1, window.innerHeight || 1);
+  const dpr = window.devicePixelRatio || 1;
+  DPR = Q === 2 ? Math.min(2, dpr) : Q === 1 ? Math.min(1.25, dpr) : 1;
+  cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+  S = Math.min(CW / W, CH / 820);
+  OX = (CW - W * S) / 2;
+  VH = CH / S;
+  gradCache.clear();
+  buildVignette();
+}
+function buildVignette() {
+  vigCv = document.createElement('canvas');
+  const w = Math.max(2, CW >> 2), h = Math.max(2, CH >> 2);
+  vigCv.width = w; vigCv.height = h;
+  const g = vigCv.getContext('2d');
+  const gr = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.55)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+}
+addEventListener('resize', resize);
+resize();
+const PCAP = () => [150, 280, 420][Q];
+// gradients are cached and re-used (they live in user space, so we translate instead of rebuilding)
+const ckey = c => ((c[0] >> 3) << 10 | (c[1] >> 3) << 5 | (c[2] >> 3));
+function grad(key, make) {
+  let g = gradCache.get(key);
+  if (!g) { if (gradCache.size > 300) gradCache.clear(); g = make(); gradCache.set(key, g); }
+  return g;
+}
+
+const glowCache = {};
+function glowSprite(c) {
+  const k = c[0] + ',' + c[1] + ',' + c[2];
+  let s = glowCache[k];
+  if (s) return s;
+  s = document.createElement('canvas'); s.width = s.height = 128;
+  const x = s.getContext('2d');
+  const gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, rgba(c, 1)); gr.addColorStop(0.12, rgba(c, 0.65));
+  gr.addColorStop(0.35, rgba(c, 0.18)); gr.addColorStop(1, rgba(c, 0));
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  return glowCache[k] = s;
+}
+function glowOn(g, c, x, y, r, a) {
+  if (a <= 0.01 || r <= 0) return;
+  g.globalAlpha = a > 1 ? 1 : a;
+  g.drawImage(glowSprite(c), x - r, y - r, r * 2, r * 2);
+}
+const glow = (c, x, y, r, a = 1) => glowOn(ctx, c, x, y, r, a);
+const rainbowCols = Array.from({ length: 24 }, (_, i) => {
+  const h = i / 24 * 6, f = h % 1, q = 1 - f, k = Math.floor(h) % 6;
+  const rgb = [[1, f, 0], [q, 1, 0], [0, 1, f], [0, q, 1], [f, 0, 1], [1, 0, q]][k];
+  return rgb.map(v => Math.round(110 + v * 145));
+});
+const hueCol = t => rainbowCols[((Math.floor(t * 6) % 24) + 24) % 24];
+
+// =====================================================================
+//  AUDIO (voice-limited so bursts of sounds never stall the frame)
+// =====================================================================
+let AC = null, master = null, send = null, noiseBuf = null, droneGain = null, voices = 0;
+let muted = false;
+try { muted = localStorage.getItem('orbita_mute') === '1'; } catch (e) {}
+function initAudio() {
+  if (AC) { if (AC.state === 'suspended' && !paused) AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = muted ? 0 : 0.55; master.connect(AC.destination);
+    const d = AC.createDelay(1); d.delayTime.value = 0.29;
+    const fb = AC.createGain(); fb.gain.value = 0.4;
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
+    const wet = AC.createGain(); wet.gain.value = 0.4;
+    send = AC.createGain();
+    send.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(wet); wet.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+    const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    droneGain = AC.createGain(); droneGain.gain.value = 0;
+    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 400;
+    droneGain.connect(dl); dl.connect(master);
+    [55, 82.41, 110.3].forEach((f, i) => {
+      const o = AC.createOscillator(); o.type = i === 2 ? 'triangle' : 'sine'; o.frequency.value = f;
+      const g = AC.createGain(); g.gain.value = i === 2 ? 0.15 : 0.5;
+      const lfo = AC.createOscillator(); lfo.frequency.value = 0.07 + i * 0.05;
+      const lg = AC.createGain(); lg.gain.value = 0.3; lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      o.connect(g); g.connect(droneGain); o.start();
+    });
+    droneGain.gain.linearRampToValueAtTime(0.05, AC.currentTime + 3);
+  } catch (e) { AC = null; }
+}
+function tone(f, dur = 0.4, type = 'sine', vol = 0.15, when = 0, slideTo = 0) {
+  if (!AC || voices > 22) return;
+  voices++;
+  const t = AC.currentTime + when;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); g.connect(send);
+  o.onended = () => { voices--; };
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function noise(dur, vol, f1, f2, q = 1.2) {
+  if (!AC || voices > 22) return;
+  voices++;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = q;
+  f.frequency.setValueAtTime(f1, t); f.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  const g = AC.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(master);
+  s.onended = () => { voices--; };
+  s.start(t); s.stop(t + dur + 0.05);
+}
+const SCALE = [0, 3, 5, 7, 10];
+function note(i, base = 220) {
+  const o = Math.floor(i / 5), k = ((i % 5) + 5) % 5;
+  return base * Math.pow(2, (o * 12 + SCALE[k]) / 12);
+}
+function setMute(m) {
+  muted = m;
+  try { localStorage.setItem('orbita_mute', m ? '1' : '0'); } catch (e) {}
+  if (master) master.gain.setTargetAtTime(m ? 0 : 0.55, AC.currentTime, 0.05);
+  document.getElementById('mute').textContent = m ? 'ЗВУК ВЫКЛ · M' : '';
+}
+
+// =====================================================================
+//  SAVE (with migration from the previous version)
+// =====================================================================
+const SAVE_KEY = 'orbita_save';
+const newBallSave = () => ({ rope: 0, engine: 0, magnet: 0 });
+function defaultSave() {
+  return { v: 2, dust: 0, coins: 0, balls: { spark: newBallSave() }, ball: 'spark', themes: ['space'], theme: 'space',
+    mode: 'classic', missions: [], mdone: 0, totals: { orbs: 0, runs: 0, coins: 0 }, refund: 0 };
+}
+function migrateSave(s) {
+  const n = defaultSave();
+  if (!s || typeof s !== 'object') return n;
+  if (!s.v) {
+    // v1 had global upgrades and colour skins — refund everything as dust
+    const OLD_UP = { rope: [40, 110, 240, 450, 800], engine: [50, 130, 280, 500, 850], magnet: [60, 160, 340, 620],
+      chain: [70, 180, 380, 700], dust: [80, 200, 400, 700, 1100], shield: [500], rescue: [900] };
+    const OLD_SKIN = { fire: 150, toxic: 300, neon: 500, ice: 750, gold: 1200, rainbow: 2500 };
+    let refund = 0;
+    for (const k in (s.up || {})) for (let i = 0; i < s.up[k]; i++) refund += (OLD_UP[k] || [])[i] || 0;
+    for (const k of (s.skins || [])) refund += OLD_SKIN[k] || 0;
+    n.dust = (s.dust | 0) + refund; n.refund = refund;
+    n.missions = Array.isArray(s.missions) ? s.missions : [];
+    n.mdone = s.mdone | 0;
+    Object.assign(n.totals, s.totals || {});
+  } else {
+    Object.assign(n, s);
+    n.totals = Object.assign({ orbs: 0, runs: 0, coins: 0 }, s.totals || {});
+    n.balls = Object.assign({ spark: newBallSave() }, s.balls || {});
+    n.themes = Array.isArray(s.themes) && s.themes.length ? s.themes : ['space'];
+  }
+  if (!BALLS.some(b => b.id === n.ball) || !n.balls[n.ball]) n.ball = 'spark';
+  if (!THEMES.some(t => t.id === n.theme) || !n.themes.includes(n.theme)) n.theme = 'space';
+  if (!MODES.some(m => m.id === n.mode)) n.mode = 'classic';
+  n.missions = (n.missions || []).filter(m => m && MT[m.type]);
+  return n;
+}
+let save;
+try { save = migrateSave(JSON.parse(localStorage.getItem(SAVE_KEY))); } catch (e) { save = defaultSave(); }
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+const best = {};
+for (const m of MODES) best[m.id] = { score: 0, h: 0, combo: 0 };
+try {
+  const b = JSON.parse(localStorage.getItem('orbita_best2'));
+  if (b) { for (const k in best) Object.assign(best[k], b[k] || {}); }
+  else { const o = JSON.parse(localStorage.getItem('orbita_best')); if (o) Object.assign(best.classic, o); }
+} catch (e) {}
+function saveBest() { try { localStorage.setItem('orbita_best2', JSON.stringify(best)); } catch (e) {} }
+
+const ballDef = () => BALLS.find(b => b.id === save.ball) || BALLS[0];
+const themeDef = () => THEMES.find(t => t.id === save.theme) || THEMES[0];
+const tier = () => Math.floor(save.mdone / 3);
+
+// =====================================================================
+//  GAME STATE
+// =====================================================================
+let state = 'menu', paused = false, holding = false, mode = save.mode;
+let P = null;
+const stars = [], mines = [], orbs = [], parts = [], pops = [], meteors = [], warns = [];
+let camY = 0, voidY = 0, gravityOn = false, maxH = 0, minPY = 0, bonus = 0;
+let combo = 0, comboT = 0, bestCombo = 0, lastStar = null, biomeIdx = 0;
+let shake = 0, flash = 0, warpT = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
+let releaseT = -9, grabs = 0, runs = 0, orbChain = 0, lastOrbT = -9, passedBest = false, lastWallT = 0;
+let genX = 0, genY = 0, genPrev = null, deathCause = 'void';
+let R = null, K = {}, rescueLeft = 0, nextRegen = 0, timeLeft = SPRINT_TIME, meteorT = 3, lastAttachY = 0;
+let happyT = 0, missionDust = 0, rankCoins = 0;
+const TRL = 32, trX = new Float32Array(TRL), trY = new Float32Array(TRL);
+let trN = 0, trH = 0;
+const pal = JSON.parse(JSON.stringify(themeDef().zones[0]));
+
+function biome() { const z = themeDef().zones; return z[biomeIdx % z.length]; }
+const mult = () => Math.min(10, 1 + Math.floor(combo / 4));
+
+// per-run stats derived from the selected ball (computed once, read every frame)
+function calcK() {
+  const b = ballDef(), u = save.balls[b.id] || newBallSave(), f = b.fx;
+  const ml = Math.min(8, (f.magnet || 0) + u.magnet);
+  K = {
+    grab: GRAB + 18 * u.rope, acc: 1 + 0.15 * u.engine, magR: ml ? 60 + 35 * ml : 0,
+    chain: COMBO_TIME + (f.chain || 0), dust: 1 + (f.dust || 0), coinMag: f.coinMag ? 240 : 0,
+    rescue: f.rescue || 0, bouncy: !!f.bouncy, phase: f.phase || 0, eat: f.eat || 0, shield: !!f.shield, regen: f.regen || 0,
+  };
+}
+function newRunStats() { return { h: 0, orbs: 0, combo: 0, near: 0, boost: 0, crumble: 0, zone: 1, coins: 0, played: 0, final: false }; }
+
+function newStar(x, y, type) {
+  return { x, y, bx: x, type, r: rand(11, 15), ph: rand(0, TAU), attT: 0, dead: false, amp: 0, ms: 0, visited: false,
+    cracks: Array.from({ length: 7 }, () => ({ a: rand(0, TAU), l: rand(0.8, 1.8), b: rand(-0.6, 0.6) })) };
+}
+
+function reset() {
+  mode = save.mode; calcK();
+  P = { x: W / 2, y: 0, floatY: 0, vx: 0, vy: 0, att: null, ang: 0, L: 0, dir: 1, spd: 0,
+    shield: K.shield, inv: 0, dead: false, phaseCD: 0, eatCD: 0 };
+  stars.length = 0; mines.length = 0; orbs.length = 0; parts.length = 0; pops.length = 0; meteors.length = 0; warns.length = 0; trN = 0;
+  const first = newStar(W / 2, -150, 'normal'); first.r = 14;
+  stars.push(first); genX = W / 2; genY = -150; genPrev = first;
+  for (let i = 0; i < 12; i++) spawnNext();
+  camY = P.y - VH * 0.6;
+  voidY = mode === 'sprint' ? 1e9 : P.y + VH * 0.42 + 60;
+  gravityOn = false; maxH = 0; minPY = 0; bonus = 0; combo = 0; comboT = 0; bestCombo = 0; lastStar = null;
+  biomeIdx = 0; grabs = 0; shake = 0; flash = 0; warpT = 0; slowT = 0; passedBest = false; happyT = 0;
+  rescueLeft = K.rescue; nextRegen = K.regen; timeLeft = SPRINT_TIME; meteorT = 3; lastAttachY = -150;
+  R = newRunStats(); missionDust = 0; rankCoins = 0;
+}
+
+// =====================================================================
+//  LEVEL GENERATION
+// =====================================================================
+function spawnNext() {
+  const h = -genY / 10, diff = clamp(h / 2500, 0, 1);
+  const gap = rand(150, 215) + diff * 95;
+  const y = genY - gap;
+  let dx = rand(-1, 1) * (130 + diff * 110);
+  if (Math.abs(dx) < 50) dx = (dx < 0 ? -1 : 1) * rand(50, 120);
+  let x = genX + dx;
+  if (x < 150 || x > W - 150) x = genX - dx;
+  x = clamp(x, 150, W - 150);
+
+  let type = 'normal';
+  const r = Math.random();
+  const pC = h > 60 ? 0.08 + diff * 0.25 : 0, pB = 0.12, pM = h > 250 ? 0.08 + diff * 0.17 : 0;
+  if (r < pC) type = 'crumble';
+  else if (r < pC + pB) type = 'boost';
+  else if (r < pC + pB + pM) type = 'moving';
+
+  const s = newStar(x, y, type);
+  if (type === 'moving') {
+    s.amp = rand(60, 120); s.ms = rand(0.7, 1.3) * (1 + diff * 0.4);
+    s.bx = clamp(x, 130 + s.amp, W - 130 - s.amp); s.x = s.bx;
+  }
+  stars.push(s);
+
+  // sparks (dust)
+  if (Math.random() < 0.45) {
+    const n = 4 + (Math.random() * 3 | 0), R0 = rand(95, 130), a0 = rand(0, TAU), span = rand(1.6, 3.4);
+    for (let i = 0; i < n; i++) orbs.push({ kind: 'orb', s, a: a0 + span * i / (n - 1), R: R0, x: 0, y: 0, ph: rand(0, TAU), dead: false });
+  } else if (Math.random() < 0.4 && genPrev) {
+    const bend = rand(-80, 80);
+    for (let i = 1; i <= 4; i++) {
+      const t = i / 5;
+      orbs.push({ kind: 'orb', s: null, x: lerp(genPrev.bx, s.bx, t) + Math.sin(t * Math.PI) * bend, y: lerp(genPrev.y, y, t), ph: rand(0, TAU), dead: false });
+    }
+  }
+  if (h > 80 && Math.random() < 0.05 && !orbs.some(o => o.kind === 'shield' && !o.dead)) {
+    orbs.push({ kind: 'shield', s, a: rand(0, TAU), R: 125, x: 0, y: 0, ph: 0, dead: false });
+  }
+
+  // mines (none in sprint — that mode is for relaxed play)
+  let ringMine = null;
+  if (mode !== 'sprint' && h > 120) {
+    const pm = Math.min(0.6, 0.12 + diff * 0.55);
+    if (Math.random() < pm) {
+      if (Math.random() < 0.5 && type !== 'crumble') {
+        ringMine = { kind: 'orbit', s, R: rand(172, 200), a: rand(0, TAU), w: rand(0.7, 1.3) * (Math.random() < 0.5 ? -1 : 1) * (1 + diff * 0.5),
+          r: 13, x: 0, y: 0, rot: 0, ph: rand(0, TAU), near: false, done: false, dead: false };
+        mines.push(ringMine);
+      } else if (genPrev) {
+        mines.push({ kind: 'drift', bx: clamp((genPrev.bx + s.bx) / 2 + rand(-130, 130), 60, W - 60), by: (genPrev.y + y) / 2,
+          amp: rand(40, 150), ms: rand(0.5, 1.2) * (1 + diff * 0.5), r: 13, x: 0, y: 0, rot: 0, ph: rand(0, TAU), near: false, done: false, dead: false });
+      }
+    }
+  }
+
+  // coins: rare, and always in a spot that needs a bit of courage
+  // sprint can't be lost, so it gets fewer coins — otherwise it becomes a coin farm
+  const coinP = mode === 'storm' ? 0.26 : mode === 'sprint' ? 0.05 : 0.13;
+  if (h > 30 && Math.random() < coinP) placeCoin(s, ringMine);
+
+  // sprint: clocks give extra time
+  if (mode === 'sprint' && h > 20 && Math.random() < 0.22) orbs.push({ kind: 'clock', s, a: rand(0, TAU), R: 115, x: 0, y: 0, ph: 0, dead: false });
+
+  genPrev = s; genX = s.bx; genY = y;
+}
+function placeCoin(s, ringMine) {
+  const r = Math.random();
+  if (ringMine && r < 0.65) {
+    // rides the mine's orbit on the opposite side — you have to time the pass
+    orbs.push({ kind: 'coin', s, a: ringMine.a + Math.PI, R: ringMine.R, spin: ringMine.w, x: 0, y: 0, ph: rand(0, TAU), dead: false });
+  } else if (r < 0.55 && genPrev) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    orbs.push({ kind: 'coin', s: null, x: clamp((genPrev.bx + s.bx) / 2 + side * rand(110, 170), 40, W - 40), y: (genPrev.y + s.y) / 2, ph: rand(0, TAU), dead: false });
+  } else {
+    orbs.push({ kind: 'coin', s: null, x: clamp(s.bx + rand(-50, 50), 40, W - 40), y: s.y - rand(160, 210), ph: rand(0, TAU), dead: false });
+  }
+}
+
+// =====================================================================
+//  EFFECTS
+// =====================================================================
+function addPart(x, y, vx, vy, life, c, size) {
+  if (parts.length >= PCAP()) return;
+  parts.push({ x, y, vx, vy, life, max: life, c, size });
+}
+function burst(x, y, c, n, sp = 260, life = 0.8, size = 10) {
+  if (Q === 0) n = Math.ceil(n / 2);
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, TAU), v = sp * rand(0.15, 1);
+    addPart(x, y, Math.cos(a) * v, Math.sin(a) * v, life * rand(0.5, 1), c, size * rand(0.6, 1.3));
+  }
+}
+function ring(x, y, c, n, sp) {
+  if (Q === 0) n = Math.ceil(n / 2);
+  for (let i = 0; i < n; i++) { const a = i / n * TAU; addPart(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.7, c, 9); }
+}
+function pop(x, y, text, c, size = 20, life = 1) { if (pops.length < 30) pops.push({ x, y, text, c, size, life, max: life }); }
+const happy = (t = 1) => { happyT = Math.max(happyT, t); };
+
+const bannerEl = document.getElementById('banner');
+function showBanner(z, name, c) {
+  document.getElementById('bz').textContent = z;
+  const bn = document.getElementById('bn'); bn.textContent = name; bn.style.color = rgba(c, 1);
+  bannerEl.classList.remove('show'); void bannerEl.offsetWidth; bannerEl.classList.add('show');
+}
+const toastEl = document.getElementById('toast');
+function toast(t1, t2) {
+  document.getElementById('tt1').textContent = t1;
+  document.getElementById('tt2').textContent = t2;
+  toastEl.classList.remove('show'); void toastEl.offsetWidth; toastEl.classList.add('show');
+}
+
+// =====================================================================
+//  CORE MECHANICS
+// =====================================================================
+function findTarget() {
+  let bestS = null, bd = K.grab;
+  for (let i = 0; i < stars.length; i++) {
+    const s = stars[i];
+    if (s.dead) continue;
+    if (s === lastStar && time - releaseT < 0.3) continue;
+    const d = Math.hypot(P.x - s.x, P.y - s.y);
+    if (d < bd) { bd = d; bestS = s; }
+  }
+  return bestS;
+}
+
+function attach(s) {
+  const dx = P.x - s.x, dy = P.y - s.y;
+  const d = Math.hypot(dx, dy) || 1;
+  P.att = s; P.L = Math.max(d, 50); P.ang = Math.atan2(dy, dx);
+  const cross = dx * P.vy - dy * P.vx;
+  if (Math.abs(cross) < 1e-3 * d) P.dir = Math.cos(P.ang) > 0 ? -1 : 1;
+  else P.dir = cross > 0 ? 1 : -1;
+  P.spd = clamp(Math.hypot(P.vx, P.vy) * 0.95, 380, MAXSPD);
+  s.attT = 0; gravityOn = true; grabs++; lastAttachY = s.y;
+  if (!s.visited) {
+    s.visited = true;
+    if (s.type === 'crumble') R.crumble++;
+    combo++; comboT = K.chain;
+    if (combo > bestCombo) bestCombo = combo;
+    const pts = 10 * mult();
+    bonus += pts;
+    pop(s.x, s.y - 34, '+' + pts, COL.gold, 16 + Math.min(combo, 12), 0.9);
+    const f = note(Math.min(combo, 22) + 4, 220);
+    tone(f, 0.55, 'triangle', 0.17); tone(f * 2, 0.3, 'sine', 0.05);
+    if (combo % 5 === 0) {
+      pop(s.x, s.y - 70, 'ЦЕПЬ ' + combo + '!', COL.gold, 30, 1.4);
+      ring(s.x, s.y, COL.gold, 28, 420);
+      [0, 2, 4, 7].forEach((k, i) => tone(note(10 + k, 220), 0.9, 'sine', 0.08, i * 0.06));
+      shake = Math.max(shake, 6); happy(1.2);
+    }
+  } else tone(note(2, 220), 0.25, 'triangle', 0.07);
+  burst(P.x, P.y, COL[s.type], 10, 160, 0.4, 7);
+}
+
+function release() {
+  const s = P.att; P.att = null; lastStar = s; releaseT = time;
+  P.vx = -Math.sin(P.ang) * P.dir * P.spd; P.vy = Math.cos(P.ang) * P.dir * P.spd;
+  if (s && s.type === 'boost' && !s.dead) {
+    P.vx *= 1.45; P.vy *= 1.45; warpT = 0.7; R.boost++;
+    burst(P.x, P.y, COL.boost, 26, 320, 0.6, 10);
+    tone(200, 0.5, 'sawtooth', 0.05, 0, 900); noise(0.4, 0.12, 600, 4000);
+    shake = Math.max(shake, 5);
+  } else noise(0.22, 0.05 + P.spd / 25000, 700, 2600);
+}
+
+function breakStar(s) {
+  s.dead = true;
+  burst(s.x, s.y, COL.crumble, 40, 300, 0.9, 11);
+  burst(s.x, s.y, COL.white, 12, 200, 0.5, 6);
+  noise(0.45, 0.22, 900, 120, 0.8); tone(110, 0.35, 'square', 0.04, 0, 50);
+  shake = Math.max(shake, 7);
+  if (P.att === s) release();
+}
+
+// returns true if the ball survives touching a mine / meteor
+function hazardHit(o) {
+  if (P.inv > 0) return true;
+  if (K.eat && P.eatCD <= 0) {
+    P.eatCD = K.eat; o.dead = true;
+    burst(o.x, o.y, COL.mine, 30, 300, 0.7, 10); ring(P.x, P.y, [190, 120, 255], 24, 360);
+    pop(P.x, P.y - 40, 'НЯМ!', [210, 160, 255], 26, 1.2);
+    bonus += 30 * mult();
+    tone(note(3, 110), 0.5, 'sine', 0.16, 0, 40); noise(0.3, 0.12, 300, 80);
+    shake = 8; happy(1.5);
+    return true;
+  }
+  if (K.phase && P.phaseCD <= 0) {
+    P.phaseCD = K.phase; P.inv = 0.8;
+    pop(P.x, P.y - 40, 'СКВОЗЬ!', [225, 215, 255], 22, 1.1);
+    tone(note(14), 0.6, 'sine', 0.09, 0, note(4)); happy(1);
+    return true;
+  }
+  if (P.shield) {
+    P.shield = false; P.inv = 1; o.dead = true;
+    burst(o.x, o.y, COL.mine, 40, 340, 0.8, 11); ring(P.x, P.y, COL.white, 30, 380);
+    noise(0.5, 0.25, 2000, 200); tone(note(15), 0.5, 'sine', 0.1);
+    flash = 0.5; shake = 10; pop(P.x, P.y - 40, 'ЩИТ СПАС!', COL.white, 22, 1.2);
+    return true;
+  }
+  return false;
+}
+
+function die(cause) {
+  if (state !== 'play') return;
+  state = 'dying'; dyingT = 1.2; deathCause = cause; P.dead = true; P.att = null; holding = false;
+  burst(P.x, P.y, COL.white, 60, 520, 1.2, 12);
+  burst(P.x, P.y, cause === 'void' ? biome().voidc : cause === 'meteor' ? COL.meteor : COL.mine, 70, 380, 1.4, 14);
+  shake = 22; flash = 1;
+  tone(170, 1.3, 'sawtooth', 0.13, 0, 28); noise(1.1, 0.35, 1400, 60, 0.7);
+  if (droneGain) droneGain.gain.setTargetAtTime(0.015, AC.currentTime, 0.3);
+}
+function endTime() {
+  state = 'dying'; dyingT = 1.4; deathCause = 'time'; holding = false;
+  for (let i = 0; i < 4; i++) ring(P.x + rand(-140, 140), P.y + rand(-160, 40), rainbowCols[i * 6], 24, 300);
+  pop(P.x, P.y - 60, 'ФИНИШ!', COL.gold, 36, 1.8); happy(3);
+  [0, 4, 7, 12, 16].forEach((k, i) => tone(note(10 + k, 220), 0.8, 'triangle', 0.08, i * 0.08));
+}
+function quitRun() {
+  setPause(false);
+  if (state !== 'play') return;
+  state = 'dying'; dyingT = 0.05; deathCause = 'quit'; holding = false;
+}
+
+function rescue() {
+  rescueLeft--;
+  if (P.att) release();
+  P.vy = -1150; P.vx *= 0.4; voidY = P.y + 260; P.inv = 1.2;
+  flash = 0.6; shake = 14; warpT = 0.8;
+  pop(P.x, P.y - 40, 'КАТАПУЛЬТА!', COL.gold, 24, 1.4);
+  ring(P.x, P.y, COL.gold, 32, 460);
+  tone(160, 0.7, 'sawtooth', 0.07, 0, 1200); noise(0.5, 0.15, 400, 5000);
+  happy(1.5);
+}
+function respawn() {
+  // sprint: falling just costs time
+  let s = (lastStar && !lastStar.dead) ? lastStar : null;
+  if (!s) { let bd = 1e9; for (const t of stars) { if (t.dead) continue; const d = Math.abs(t.y - lastAttachY); if (d < bd) { bd = d; s = t; } } }
+  P.att = null; P.vx = 0; P.vy = 0;
+  P.x = s ? s.x : W / 2; P.floatY = (s ? s.y : lastAttachY) + 120; P.y = P.floatY;
+  gravityOn = false; trN = 0; combo = 0;
+  lastAttachY = P.floatY - 120;
+  timeLeft = Math.max(0, timeLeft - 3);
+  pop(P.x, P.y - 30, '−3 с', [255, 120, 150], 24, 1.2);
+  flash = 0.3; tone(note(2), 0.4, 'triangle', 0.08, 0, note(0));
+}
+
+function collect(o) {
+  o.dead = true;
+  if (o.kind === 'shield') {
+    P.shield = true;
+    ring(o.x, o.y, COL.white, 24, 300);
+    [0, 4, 7, 12].forEach((k, i) => tone(note(8 + k, 220), 0.6, 'triangle', 0.08, i * 0.05));
+    pop(o.x, o.y - 30, 'ЩИТ', COL.white, 22, 1.2); happy(1);
+  } else if (o.kind === 'clock') {
+    timeLeft += 4;
+    ring(o.x, o.y, COL.clock, 20, 260);
+    pop(o.x, o.y - 26, '+4 с', COL.clock, 24, 1.1);
+    tone(note(12), 0.3, 'sine', 0.1); tone(note(17), 0.4, 'sine', 0.08, 0.06);
+  } else if (o.kind === 'coin') {
+    R.coins++; save.coins++; save.totals.coins++; persist();
+    ring(o.x, o.y, COL.gold, 22, 320); burst(o.x, o.y, [255, 250, 200], 14, 220, 0.6, 8);
+    pop(o.x, o.y - 30, '+1 МОНЕТА', COL.gold, 22, 1.3);
+    [15, 17, 20].forEach((k, i) => tone(note(k, 220), 0.5, 'triangle', 0.1, i * 0.06));
+    shake = Math.max(shake, 4); happy(1.3);
+  } else {
+    if (time - lastOrbT > 0.9) orbChain = 0;
+    lastOrbT = time; orbChain++; R.orbs++;
+    const pts = 5 * mult();
+    bonus += pts;
+    burst(o.x, o.y, biome().orb, 8, 150, 0.4, 6);
+    tone(note(10 + Math.min(orbChain, 14), 220), 0.22, 'sine', 0.09);
+    pop(o.x, o.y - 18, '+' + pts, biome().orb, 13, 0.6);
+  }
+}
+
+function startGame() {
+  initAudio();
+  reset();
+  runs++;
+  state = 'play'; holding = false; paused = false;
+  for (const id of ['menu', 'over', 'shop', 'pausep']) document.getElementById(id).classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('timer').classList.toggle('hidden', mode !== 'sprint');
+  document.body.classList.toggle('sprint', mode === 'sprint');
+  for (const k in hudCache) hudCache[k] = -1;
+  if (droneGain) droneGain.gain.setTargetAtTime(0.05, AC.currentTime, 0.5);
+  tone(note(5), 0.4, 'sine', 0.08); tone(note(9), 0.5, 'sine', 0.06, 0.08);
+}
+function showMenu() {
+  state = 'menu';
+  reset();
+  for (const id of ['over', 'shop', 'pausep', 'hud', 'timer']) document.getElementById(id).classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+  refreshMenu();
+}
+
+function finishDeath() {
+  state = 'dead'; deadAt = performance.now(); holding = false;
+  const B = best[mode];
+  const score = Math.floor(maxH) + bonus;
+  const isRec = score > B.score && score > 0;
+  const stormWasLocked = best.classic.h < 300;
+  B.score = Math.max(B.score, score); B.h = Math.max(B.h, Math.floor(maxH)); B.combo = Math.max(B.combo, bestCombo);
+  saveBest();
+  const msgs = DEATH_MSG[deathCause] || DEATH_MSG.quit;
+  document.getElementById('dmsg').textContent = msgs[Math.random() * msgs.length | 0];
+  document.getElementById('otag').textContent = MODES.find(m => m.id === mode).name.toUpperCase();
+  document.getElementById('sS').textContent = score;
+  document.getElementById('sH').textContent = Math.floor(maxH);
+  document.getElementById('sC').textContent = bestCombo;
+  document.getElementById('newrec').classList.toggle('hidden', !isRec);
+  document.getElementById('rec2').textContent = `рекорд: ${B.score} очков · ${B.h} м · цепь ${B.combo}`;
+
+  // economy: sparks at the end of the run, coins were credited on pickup
+  const dm = K.dust * (mode === 'storm' ? 1.5 : 1);
+  const fromOrbs = R.orbs, fromH = Math.floor(maxH / 20);
+  const earned = Math.round((fromOrbs + fromH) * dm);
+  save.dust += earned;
+  save.totals.orbs += R.orbs; save.totals.runs++; R.played = 1;
+  R.final = true;
+  checkMissions();
+  persist();
+  let det = `искры ${fromOrbs} · высота ${fromH}`;
+  if (dm > 1.001) det += ` · бонус ×${+dm.toFixed(2)}`;
+  if (missionDust) det += ` · задания +${missionDust}`;
+  const coinsGot = R.coins + rankCoins;
+  document.getElementById('earn').innerHTML = `+${earned + missionDust} ✦` + (coinsGot ? ` &nbsp; +${coinsGot} <i class="coin"></i>` : '');
+  document.getElementById('earnd').textContent = det;
+  document.getElementById('ms2').innerHTML = missionsHTML('ЗАДАНИЯ');
+  refillMissions();
+  document.getElementById('goal2').innerHTML = goalHTML();
+  refreshWallet();
+  document.getElementById('over').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('timer').classList.add('hidden');
+  if (isRec) [0, 3, 5, 7, 10, 12].forEach((k, i) => tone(note(10 + k, 220), 0.7, 'triangle', 0.08, i * 0.08));
+  if (stormWasLocked && best.classic.h >= 300) setTimeout(() => toast('НОВЫЙ РЕЖИМ ОТКРЫТ', 'Шторм — метеориты и двойные монеты!'), 600);
+}
+
+// =====================================================================
+//  SIMULATION
+// =====================================================================
+function updateWorld(dt) {
+  for (let i = 0; i < stars.length; i++) { const s = stars[i]; if (s.type === 'moving') s.x = s.bx + Math.sin(time * s.ms + s.ph) * s.amp; }
+  for (let i = 0; i < mines.length; i++) {
+    const m = mines[i];
+    m.rot += dt * 2.2;
+    if (m.kind === 'orbit') { m.a += m.w * dt; m.x = m.s.x + Math.cos(m.a) * m.R; m.y = m.s.y + Math.sin(m.a) * m.R; }
+    else { m.x = m.bx + Math.sin(time * m.ms + m.ph) * m.amp; m.y = m.by; }
+  }
+  for (let i = 0; i < orbs.length; i++) {
+    const o = orbs[i];
+    if (o.s) { o.a += (o.spin !== undefined ? o.spin : 0.5) * dt; o.x = o.s.x + Math.cos(o.a) * o.R; o.y = o.s.y + Math.sin(o.a) * o.R; }
+  }
+}
+
+function step(dt) {
+  updateWorld(dt);
+
+  if (P.att && (!holding || P.att.dead)) release();
+  if (!P.att && holding) { const t = findTarget(); if (t) attach(t); }
+
+  if (P.att) {
+    const s = P.att;
+    s.attT += dt;
+    P.spd = Math.min(P.spd + ORBIT_ACC * K.acc * dt, MAXSPD);
+    const tl = clamp(P.L, 70, 150);
+    P.L += (tl - P.L) * Math.min(1, dt * 4);
+    P.ang += P.dir * P.spd / P.L * dt;
+    P.x = s.x + Math.cos(P.ang) * P.L; P.y = s.y + Math.sin(P.ang) * P.L;
+    P.vx = -Math.sin(P.ang) * P.dir * P.spd; P.vy = Math.cos(P.ang) * P.dir * P.spd;
+    if (s.type === 'crumble' && s.attT > CRUMBLE_T) breakStar(s);
+  } else {
+    if (gravityOn) P.vy += G * dt;
+    else { P.vx = 0; P.vy = 0; P.y = P.floatY + Math.sin(time * 2.2) * 5; }
+    const sp = Math.hypot(P.vx, P.vy);
+    if (sp > MAXFREE) { P.vx *= MAXFREE / sp; P.vy *= MAXFREE / sp; }
+    P.x += P.vx * dt; P.y += P.vy * dt;
+    if (P.x < 10 || P.x > W - 10) {
+      P.x = clamp(P.x, 10, W - 10); P.vx = -P.vx * (K.bouncy ? 1.08 : 0.85);
+      if (time - lastWallT > 0.15) {
+        lastWallT = time;
+        burst(P.x, P.y, biome().orb, 12, 200, 0.4, 6);
+        tone(note(K.bouncy ? 8 : 1, 440), 0.12, K.bouncy ? 'triangle' : 'square', 0.04);
+      }
+    }
+  }
+  if (P.inv > 0) P.inv -= dt;
+  if (P.phaseCD > 0) P.phaseCD -= dt;
+  if (P.eatCD > 0) P.eatCD -= dt;
+
+  // mines
+  for (let i = 0; i < mines.length; i++) {
+    const m = mines[i];
+    if (m.dead) continue;
+    const d = Math.hypot(P.x - m.x, P.y - m.y);
+    if (d < m.r + 6) {
+      if (!hazardHit(m)) { die('mine'); return; }
+      continue;
+    }
+    if (m.done) continue;
+    if (d < m.r + 32) m.near = true;
+    else if (m.near && d > m.r + 70) {
+      m.near = false; m.done = true;
+      const pts = 25 * mult();
+      bonus += pts; slowT = 0.35; R.near++;
+      pop(P.x, P.y - 36, 'НА ВОЛОСКЕ +' + pts, [255, 120, 150], 18, 1.2);
+      tone(note(15), 0.4, 'sine', 0.1); tone(note(17), 0.5, 'sine', 0.08, 0.07);
+    }
+  }
+
+  // meteors (storm)
+  if (mode === 'storm') {
+    if (gravityOn) {
+      meteorT -= dt;
+      if (meteorT <= 0) {
+        meteorT = rand(1.3, 2.6) * Math.max(0.45, 1 - maxH / 3500);
+        warns.push({ x: rand(50, W - 50), t: 0.9, vx: rand(-120, 120), done: false });
+      }
+    }
+    for (let i = 0; i < warns.length; i++) {
+      const w = warns[i];
+      if (w.done) continue;
+      w.t -= dt;
+      if (w.t <= 0) {
+        w.done = true;
+        meteors.push({ x: w.x, y: camY - 120, vx: w.vx, vy: rand(430, 560) + Math.min(250, maxH * 0.05), r: 15, rot: 0, dead: false, near: false, nd: false });
+        tone(90, 0.5, 'sawtooth', 0.04, 0, 40);
+      }
+    }
+    for (let i = 0; i < meteors.length; i++) {
+      const m = meteors[i];
+      if (m.dead) continue;
+      m.x += m.vx * dt; m.y += m.vy * dt; m.rot += dt * 3;
+      if (m.x < 15 || m.x > W - 15) m.vx = -m.vx;
+      const d = Math.hypot(P.x - m.x, P.y - m.y);
+      if (d < m.r + 7) { if (!hazardHit(m)) { die('meteor'); return; } }
+      else if (d < m.r + 40) m.near = true;
+      else if (m.near && !m.nd && d > m.r + 80) {
+        m.nd = true; bonus += 20 * mult(); R.near++;
+        pop(P.x, P.y - 36, 'УВЕРНУЛСЯ!', [255, 170, 90], 18, 1.1);
+        tone(note(14), 0.35, 'sine', 0.08);
+      }
+    }
+  }
+
+  // pickups (+ magnets)
+  const mr = K.magR, cm = K.coinMag;
+  for (let i = 0; i < orbs.length; i++) {
+    const o = orbs[i];
+    if (o.dead) continue;
+    let dx = P.x - o.x, dy = P.y - o.y, d = Math.hypot(dx, dy);
+    const pull = o.kind === 'orb' ? mr : o.kind === 'coin' ? cm : 0;
+    if (pull && d < pull) {
+      o.s = null; const k = Math.min(1, dt * 9);
+      o.x += dx * k; o.y += dy * k; d = Math.hypot(P.x - o.x, P.y - o.y);
+    }
+    if (d < (o.kind === 'orb' ? 24 : 30)) collect(o);
+  }
+
+  // the void / sprint respawn
+  if (mode === 'sprint') {
+    if (P.y > lastAttachY + 650) respawn();
+  } else {
+    if (gravityOn) {
+      voidY -= (36 + Math.min(190, maxH * 0.065)) * dt;
+      voidY = Math.min(voidY, minPY + 950);
+    }
+    if (P.y > voidY - 4) {
+      if (rescueLeft <= 0) { die('void'); return; }
+      rescue();
+    }
+  }
+
+  // progress
+  if (P.y < minPY) minPY = P.y;
+  const h = -minPY / 10;
+  if (h > maxH) maxH = h;
+  R.h = Math.floor(maxH); R.combo = bestCombo; R.zone = biomeIdx + 1;
+  const bh = best[mode].h;
+  if (!passedBest && bh > 30 && maxH > bh) {
+    passedBest = true;
+    pop(P.x, P.y - 50, 'НОВЫЙ РЕКОРД ВЫСОТЫ!', COL.gold, 22, 1.8);
+    ring(P.x, P.y, COL.gold, 36, 500); happy(2);
+    [0, 2, 4, 5, 7].forEach((k, i) => tone(note(10 + k, 220), 0.6, 'triangle', 0.07, i * 0.07));
+  }
+  if (K.regen && !P.shield && maxH >= nextRegen) {
+    P.shield = true; nextRegen = maxH + K.regen;
+    pop(P.x, P.y - 40, 'НОВЫЙ ЩИТ', COL.white, 20, 1.2);
+    [0, 4, 7].forEach((k, i) => tone(note(10 + k, 220), 0.5, 'triangle', 0.07, i * 0.05));
+  }
+  const bi = Math.floor(maxH / BIOME_LEN);
+  if (bi !== biomeIdx) {
+    biomeIdx = bi;
+    const B = biome();
+    showBanner('ЗОНА ' + (bi + 1), B.name.toUpperCase(), B.orb);
+    [0, 2, 4].forEach((k, i) => tone(note(k + i * 2, 110), 2.6, 'sine', 0.07, i * 0.12));
+  }
+
+  if (combo > 0) { comboT -= dt; if (comboT <= 0) combo = 0; }
+
+  if (mode === 'sprint' && gravityOn) {
+    timeLeft -= dt;
+    if (timeLeft <= 0) { timeLeft = 0; endTime(); }
+  }
+}
+
+// in-place removal: no new arrays every frame (this was the main source of GC hitches)
+function compact(arr, keep) {
+  let j = 0;
+  for (let i = 0; i < arr.length; i++) { const o = arr[i]; if (keep(o)) arr[j++] = o; }
+  arr.length = j;
+}
+let cutY = 0;
+const keepStar = s => !s.dead && s.y < cutY;
+const keepMine = m => !m.dead && (m.kind === 'orbit' ? m.s.y : m.y) < cutY;
+const keepOrb = o => !o.dead && o.y < cutY + 200;
+const keepMeteor = m => !m.dead && m.y < camY + VH + 300;
+const keepWarn = w => !w.done;
+const keepPart = p => p.life > 0;
+const keepPop = p => p.life > 0;
+function cleanup() {
+  while (genY > camY - 900) spawnNext();
+  cutY = (mode === 'sprint' ? camY + VH : Math.max(voidY, camY + VH)) + 400;
+  compact(stars, keepStar); compact(mines, keepMine); compact(orbs, keepOrb);
+  compact(meteors, keepMeteor); compact(warns, keepWarn);
+}
+
+function updateFx(dt, rdt) {
+  const k = Math.pow(0.08, dt);
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= k; p.vy *= k; p.life -= dt;
+  }
+  compact(parts, keepPart);
+  for (let i = 0; i < pops.length; i++) { pops[i].y -= 45 * dt; pops[i].life -= rdt; }
+  compact(pops, keepPop);
+  shake *= Math.pow(0.004, rdt); if (shake < 0.2) shake = 0;
+  flash = Math.max(0, flash - rdt * 2.2);
+  warpT = Math.max(0, warpT - rdt);
+  if (happyT > 0) happyT -= rdt;
+
+  if (state === 'play' && !P.dead) {
+    trX[trH] = P.x; trY[trH] = P.y; trH = (trH + 1) % TRL; if (trN < TRL) trN++;
+    const sp = Math.hypot(P.vx, P.vy), b = ballDef();
+    // per-ball trail particles
+    if (b.look === 'fire' && Math.random() < 0.8) addPart(P.x + rand(-5, 5), P.y + rand(-5, 5), -P.vx * 0.08 + rand(-30, 30), -P.vy * 0.08 - 40, 0.5, Math.random() < 0.5 ? [255, 200, 80] : [255, 90, 30], 9);
+    else if (b.look === 'volt' && Math.random() < 0.25) addPart(P.x, P.y, rand(-120, 120), rand(-120, 120), 0.25, b.c2, 6);
+    else if (b.look === 'gold' && Math.random() < 0.35) addPart(P.x + rand(-8, 8), P.y + rand(-8, 8), 0, 0, 0.6, [255, 250, 200], 5);
+    else if (b.look === 'rainbow' && Math.random() < 0.5) addPart(P.x, P.y, -P.vx * 0.05, -P.vy * 0.05, 0.5, hueCol(time * 3), 7);
+    else if (b.look === 'hole' && Math.random() < 0.4) { const a = rand(0, TAU); addPart(P.x + Math.cos(a) * 40, P.y + Math.sin(a) * 40, -Math.cos(a) * 90, -Math.sin(a) * 90, 0.45, b.c, 6); }
+    else if (sp > 750 && Math.random() < 0.5) addPart(P.x + rand(-4, 4), P.y + rand(-4, 4), -P.vx * 0.05, -P.vy * 0.05, 0.4, sp > 1000 ? COL.gold : ballCols(b, time)[0], 6);
+  } else if (state === 'dying' && trN > 0) trN--;
+
+  const look = P.att ? 0 : clamp(P.vy * 0.08, -90, 40);
+  const tgt = P.y - VH * 0.58 + look;
+  camY += (tgt - camY) * Math.min(1, rdt * 4);
+  if (!isFinite(camY)) camY = tgt;
+
+  const B = biome(), t = Math.min(1, rdt * 0.8);
+  for (const key of ['bg1', 'bg2', 'neb', 'neb2', 'voidc']) for (let i = 0; i < 3; i++) pal[key][i] = lerp(pal[key][i], B[key][i], t);
+}
+
+// =====================================================================
+//  BALL RENDERING (shared by the game and the shop previews)
+// =====================================================================
+function ballCols(b, t) { return b.c ? [b.c, b.c2] : [hueCol(t), hueCol(t + 2)]; }
+function bodyLayers(g, x, y, r, c, c2) {
+  g.fillStyle = rgba(c2, 1); g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  g.fillStyle = rgba(c, 1); g.beginPath(); g.arc(x - r * 0.1, y - r * 0.12, r * 0.84, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.75)'; g.beginPath(); g.ellipse(x - r * 0.38, y - r * 0.45, r * 0.24, r * 0.14, -0.6, 0, TAU); g.fill();
+}
+function drawFace(g, x, y, r, vx, vy, mood, t, seed, ghost) {
+  const sp = Math.hypot(vx, vy);
+  const k = sp > 1 ? Math.min(1, sp / 300) * r * 0.09 : 0;
+  const lx = sp > 1 ? vx / sp * k : 0, ly = sp > 1 ? vy / sp * k : 0;
+  const ex = r * 0.36, ey = y - r * 0.06, er = r * (mood === 'scared' ? 0.31 : 0.25);
+  const blink = mood !== 'happy' && ((t * 0.31 + seed) % 1) < 0.04;
+  g.lineCap = 'round'; g.strokeStyle = '#1a1030'; g.lineWidth = Math.max(0.9, r * 0.12);
+  if (mood === 'happy') {
+    for (let s = -1; s <= 1; s += 2) { g.beginPath(); g.arc(x + s * ex, ey + er * 0.35, er * 0.75, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
+  } else if (blink) {
+    for (let s = -1; s <= 1; s += 2) { g.beginPath(); g.moveTo(x + s * ex - er * 0.8, ey); g.lineTo(x + s * ex + er * 0.8, ey); g.stroke(); }
+  } else {
+    for (let s = -1; s <= 1; s += 2) {
+      const cx = x + s * ex;
+      if (!ghost) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(cx, ey, er, er * 1.15, 0, 0, TAU); g.fill(); }
+      const pr = ghost ? er * 0.8 : er * (mood === 'scared' ? 0.38 : 0.55);
+      g.fillStyle = '#1a1030'; g.beginPath(); g.ellipse(cx + lx, ey + ly, pr, pr * 1.15, 0, 0, TAU); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(cx + lx - pr * 0.3, ey + ly - pr * 0.35, pr * 0.32, 0, TAU); g.fill();
+    }
+  }
+  const my = y + r * 0.38;
+  if (mood === 'scared') { g.beginPath(); g.ellipse(x, my, r * 0.1, r * 0.13, 0, 0, TAU); g.stroke(); }
+  else if (mood === 'happy') { g.fillStyle = '#1a1030'; g.beginPath(); g.arc(x, my - r * 0.06, r * 0.2, 0, Math.PI); g.closePath(); g.fill(); }
+  else { g.beginPath(); g.arc(x, my - r * 0.12, r * 0.16, Math.PI * 0.2, Math.PI * 0.8); g.stroke(); }
+  g.fillStyle = 'rgba(255,110,160,0.35)';
+  for (let s = -1; s <= 1; s += 2) { g.beginPath(); g.arc(x + s * r * 0.6, y + r * 0.25, r * 0.13, 0, TAU); g.fill(); }
+}
+function drawBall(g, x, y, r, b, t, vx, vy, mood, alpha, seed, glowK = 1) {
+  const cc = ballCols(b, t), c = cc[0], c2 = cc[1];
+  const sp = Math.hypot(vx, vy);
+  const dX = sp > 40 ? -vx / sp : 0, dY = sp > 40 ? -vy / sp : 1;  // "behind" direction (down when still)
+  g.globalCompositeOperation = 'lighter';
+  glowOn(g, b.look === 'hole' ? b.c : c, x, y, r * (b.look === 'hole' ? 6 : 4.6) * glowK, 0.6 * alpha);
+  if (b.look === 'fire') {
+    for (let i = 3; i >= 1; i--) {
+      const d = r * 0.85 * i, fl = Math.sin(t * 25 + i * 2) * r * 0.25;
+      const fx = x + (sp > 40 ? dX : 0) * d + (sp > 40 ? -dY : 1) * fl, fy = y + (sp > 40 ? dY : -1) * d + (sp > 40 ? dX : 0) * fl;
+      glowOn(g, i === 1 ? [255, 220, 90] : [255, 110, 40], fx, fy, r * (1.9 - i * 0.35), 0.85 * alpha);
+    }
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = alpha;
+  switch (b.look) {
+    case 'slime': {
+      const st = 1 + Math.min(0.35, sp / 2600) + Math.sin(t * 14) * 0.05;
+      g.save(); g.translate(x, y); g.rotate(sp > 40 ? Math.atan2(vy, vx) : 0); g.scale(st, 1 / st);
+      bodyLayers(g, 0, 0, r, c, c2); g.restore();
+      break;
+    }
+    case 'ghost': {
+      g.globalAlpha = alpha * 0.85;
+      const by = y + r * 0.75, wv = Math.sin(t * 8) * r * 0.14;
+      g.fillStyle = rgba(c, 1);
+      g.beginPath(); g.arc(x, y, r, Math.PI, 0); g.lineTo(x + r, by);
+      g.quadraticCurveTo(x + r * 0.66, by + r * 0.5 + wv, x + r * 0.33, by);
+      g.quadraticCurveTo(x, by + r * 0.5 - wv, x - r * 0.33, by);
+      g.quadraticCurveTo(x - r * 0.66, by + r * 0.5 + wv, x - r, by);
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.ellipse(x - r * 0.4, y - r * 0.45, r * 0.22, r * 0.13, -0.6, 0, TAU); g.fill();
+      break;
+    }
+    case 'hole': {
+      g.save(); g.translate(x, y); g.rotate(-0.35);
+      g.lineWidth = r * 0.34; g.strokeStyle = rgba(c2, 0.9);
+      g.beginPath(); g.ellipse(0, 0, r * 1.9, r * 0.55, 0, Math.PI, TAU); g.stroke();
+      g.restore();
+      g.fillStyle = '#07030d'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+      g.strokeStyle = rgba(c, 0.95); g.lineWidth = r * 0.16; g.stroke();
+      g.save(); g.translate(x, y); g.rotate(-0.35);
+      g.lineWidth = r * 0.34; g.strokeStyle = rgba(c2, 0.95);
+      g.beginPath(); g.ellipse(0, 0, r * 1.9, r * 0.55, 0, 0, Math.PI); g.stroke();
+      g.globalCompositeOperation = 'lighter';
+      const a1 = t * 3;
+      glowOn(g, [255, 220, 160], Math.cos(a1) * r * 1.9, Math.sin(a1) * r * 0.55, r * 0.7, 0.9 * alpha);
+      glowOn(g, [255, 220, 160], Math.cos(a1 + 2.5) * r * 1.9, Math.sin(a1 + 2.5) * r * 0.55, r * 0.5, 0.7 * alpha);
+      g.globalCompositeOperation = 'source-over';
+      g.restore();
+      g.globalAlpha = alpha;
+      break;
+    }
+    default:
+      bodyLayers(g, x, y, r, c, c2);
+  }
+  if (b.look === 'volt') {
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = rgba(c2, 0.95); g.lineWidth = Math.max(1, r * 0.13);
+    for (let k = 0; k < 2; k++) {
+      g.beginPath();
+      const a0 = t * 7 + k * Math.PI;
+      for (let j = 0; j <= 5; j++) {
+        const a = a0 + j * 0.35, rr = r * (1.35 + (Math.random() - 0.5) * 0.4);
+        if (j) g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); else g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      g.stroke();
+    }
+    g.globalCompositeOperation = 'source-over';
+  } else if (b.look === 'gold') {
+    g.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 2; k++) {
+      const a = t * 3 + k * Math.PI, sx = x + Math.cos(a) * r * 1.6, sy = y + Math.sin(a) * r * 1.6;
+      glowOn(g, [255, 250, 210], sx, sy, r * 0.7, alpha);
+      g.globalAlpha = alpha; g.strokeStyle = '#fff'; g.lineWidth = Math.max(0.8, r * 0.08);
+      g.beginPath(); g.moveTo(sx - r * 0.35, sy); g.lineTo(sx + r * 0.35, sy); g.moveTo(sx, sy - r * 0.35); g.lineTo(sx, sy + r * 0.35); g.stroke();
+    }
+    g.globalCompositeOperation = 'source-over';
+  } else if (b.look === 'rainbow') {
+    g.globalAlpha = alpha;
+    g.fillStyle = '#ffe27a'; g.strokeStyle = '#fff'; g.lineWidth = Math.max(0.6, r * 0.06);
+    g.beginPath(); g.moveTo(x - r * 0.24, y - r * 0.78); g.lineTo(x + r * 0.2, y - r * 0.9); g.lineTo(x + r * 0.08, y - r * 1.8); g.closePath(); g.fill(); g.stroke();
+  }
+  g.globalAlpha = alpha;
+  drawFace(g, x, y, r, vx, vy, mood, t, seed, b.look === 'ghost');
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+
+// =====================================================================
+//  RENDER
+// =====================================================================
+const BGP = Array.from({ length: 140 }, (_, i) => ({ x: Math.random(), y: Math.random(), f: [0.04, 0.1, 0.22][i % 3], sz: rand(0.6, 1.2) * [1, 1.6, 2.4][i % 3],
+  a: [0.45, 0.7, 0.95][i % 3], ph: rand(0, TAU), sp: rand(0.5, 1.5) }));
+const NEB = [{ x: .2, y: .1, r: .7, k: 0 }, { x: .85, y: .45, r: .6, k: 1 }, { x: .35, y: .8, r: .8, k: 0 }, { x: .7, y: 1.2, r: .6, k: 1 }];
+const WARP = Array.from({ length: 40 }, () => ({ x: Math.random(), o: Math.random(), len: rand(60, 220), sp: rand(1.5, 3) }));
+const CANDY = ['#ff8fc8', '#ffe27a', '#8fe8ff', '#b9a2ff', '#9dffb0', '#ffffff'];
+
+function bgStars(n) {
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < n; i++) {
+    const s = BGP[i];
+    let y = (s.y * CH - camY * S * s.f) % CH; if (y < 0) y += CH;
+    ctx.globalAlpha = s.a * (0.6 + 0.4 * Math.sin(time * 2 + s.ph));
+    ctx.fillRect(s.x * CW, y, s.sz, s.sz);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawBackground() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const b1 = pal.bg1, b2 = pal.bg2;
+  ctx.fillStyle = grad('bg' + ckey(b1) + '|' + ckey(b2) + '|' + CH, () => {
+    const g = ctx.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, rgba(b2, 1)); g.addColorStop(1, rgba(b1, 1)); return g;
+  });
+  ctx.fillRect(0, 0, CW, CH);
+
+  const style = themeDef().style;
+  if (Q > 0 && style !== 'grid') {
+    ctx.globalCompositeOperation = 'lighter';
+    const span = CH * 1.6, RR = Math.max(CW, CH) * 0.6;
+    for (const n of NEB) {
+      let y = (n.y * span - camY * S * 0.03) % span; if (y < 0) y += span; y -= CH * 0.3;
+      const r = Math.round(n.r * RR), c = n.k ? pal.neb2 : pal.neb;
+      ctx.fillStyle = grad('nb' + ckey(c) + '|' + r, () => {
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, rgba(c, 0.16)); g.addColorStop(1, rgba(c, 0)); return g;
+      });
+      ctx.setTransform(DPR, 0, 0, DPR, DPR * n.x * CW, DPR * y);
+      ctx.fillRect(-r, -r, r * 2, r * 2);
+    }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  const lite = Q === 0;
+  if (style === 'stars') bgStars(lite ? 70 : 140);
+  else if (style === 'bubbles') {
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#c8fbff';
+    const n = lite ? 25 : 50, span = CH * 1.2;
+    for (let i = 0; i < n; i++) {
+      const s = BGP[i], r = 2 + s.sz * 4;
+      let y = (s.y * span - time * s.sp * 40 - camY * S * s.f * 1.5) % span; if (y < 0) y += span; y -= CH * 0.1;
+      const x = s.x * CW + Math.sin(time * 1.5 + s.ph) * 8;
+      ctx.globalAlpha = 0.18 + 0.2 * s.a;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.fillRect(x - r * 0.45, y - r * 0.5, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+  } else if (style === 'candy') {
+    ctx.lineCap = 'round'; ctx.lineWidth = 4;
+    const n = lite ? 30 : 60;
+    for (let i = 0; i < n; i++) {
+      const s = BGP[i];
+      let y = (s.y * CH - camY * S * s.f * 1.5) % CH; if (y < 0) y += CH;
+      const x = s.x * CW, a = s.ph + time * 0.6 * (s.sp - 1), len = 4 + s.sz * 3;
+      ctx.strokeStyle = CANDY[i % 6]; ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * len, y - Math.sin(a) * len); ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (style === 'grid') {
+    bgStars(lite ? 40 : 70);
+    const sx = CW / 2, sy = CH * 0.3, sr = Math.round(Math.min(CW, CH) * 0.17);
+    ctx.fillStyle = grad('sun' + ckey(pal.neb) + ckey(pal.neb2) + '|' + sr + '|' + Math.round(sy), () => {
+      const g = ctx.createLinearGradient(0, sy - sr, 0, sy + sr); g.addColorStop(0, rgba(pal.neb2, 1)); g.addColorStop(1, rgba(pal.neb, 1)); return g;
+    });
+    ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = rgba([lerp(b2[0], b1[0], 0.3), lerp(b2[1], b1[1], 0.3), lerp(b2[2], b1[2], 0.3)], 1);
+    for (let i = 0; i < 6; i++) ctx.fillRect(sx - sr - 2, sy + sr * (0.08 + i * 0.16), sr * 2 + 4, 2 + i * 1.6);
+    const hy = CH * 0.64;
+    ctx.strokeStyle = rgba(pal.neb, 0.35); ctx.lineWidth = 1.2; ctx.beginPath();
+    const off = (time * 0.6 - camY * 0.0015) % 1;
+    for (let i = 0; i < 14; i++) { const k = ((i + off) % 14) / 14, y = hy + (CH - hy) * k * k; ctx.moveTo(0, y); ctx.lineTo(CW, y); }
+    for (let i = -12; i <= 12; i++) { ctx.moveTo(CW / 2 + i * CW * 0.012, hy); ctx.lineTo(CW / 2 + i * CW * 0.12, CH); }
+    ctx.stroke();
+    ctx.strokeStyle = rgba(pal.neb2, 0.6); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(CW, hy); ctx.stroke();
+  } else if (style === 'aurora') {
+    bgStars(lite ? 30 : 60);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let bnd = 0; bnd < (lite ? 2 : 3); bnd++) {
+      const c = bnd % 2 ? pal.neb2 : pal.neb, base = CH * (0.16 + bnd * 0.13);
+      ctx.fillStyle = grad('au' + bnd + ckey(c) + '|' + CH, () => {
+        const g = ctx.createLinearGradient(0, base - 90, 0, base + 60);
+        g.addColorStop(0, rgba(c, 0)); g.addColorStop(0.6, rgba(c, 0.22)); g.addColorStop(1, rgba(c, 0)); return g;
+      });
+      ctx.beginPath(); ctx.moveTo(0, base + 60);
+      for (let x = 0; x <= CW + 24; x += 24) ctx.lineTo(x, base - 80 + Math.sin(x * 0.004 + time * 0.4 + bnd) * 40 + Math.sin(x * 0.011 - time * 0.7) * 16);
+      for (let x = CW + 24; x >= 0; x -= 24) ctx.lineTo(x, base + 50 + Math.sin(x * 0.005 + time * 0.3 + bnd * 2) * 30);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#fff';
+    const n = lite ? 30 : 60;
+    for (let i = 60; i < 60 + n; i++) {
+      const s = BGP[i];
+      let y = (s.y * CH + time * s.sp * 30 - camY * S * s.f) % CH; if (y < 0) y += CH;
+      ctx.globalAlpha = 0.6 * s.a; ctx.fillRect(s.x * CW + Math.sin(time + s.ph) * 6, y, s.sz + 0.5, s.sz + 0.5);
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (OX > 1) {
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.fillRect(0, 0, OX, CH); ctx.fillRect(OX + W * S, 0, CW - OX - W * S, CH);
+  }
+}
+
+function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); }
+
+function drawStar(s, target) {
+  const c = COL[s.type];
+  let x = s.x, y = s.y, k = 0;
+  const a = s.visited ? 0.55 : 1, pulse = 1 + Math.sin(time * 3 + s.ph) * 0.08;
+  if (s.type === 'crumble' && P.att === s) { k = s.attT / CRUMBLE_T; x += rand(-1, 1) * k * 3; y += rand(-1, 1) * k * 3; }
+  ctx.globalCompositeOperation = 'lighter';
+  glow(c, x, y, 75 * pulse, 0.5 * a); glow(c, x, y, 28, 0.9 * a);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff'; circle(x, y, s.r * 0.55); ctx.fill();
+  ctx.strokeStyle = rgba(c, 0.85 * a); ctx.lineWidth = 2; circle(x, y, s.r + 4); ctx.stroke();
+  if (s.type === 'boost') {
+    ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 3;
+    for (let i = 0; i < 3; i++) { const b = time * 2.5 + i * TAU / 3; ctx.beginPath(); ctx.arc(x, y, s.r + 11, b, b + 0.9); ctx.stroke(); }
+  } else if (s.type === 'crumble') {
+    ctx.strokeStyle = rgba([255, 230, 200], 0.4 + k * 0.6); ctx.lineWidth = 1.5;
+    const n = Math.min(7, Math.ceil(2 + k * 5));
+    for (let i = 0; i < n; i++) {
+      const cr = s.cracks[i];
+      const mx = x + Math.cos(cr.a) * s.r * 0.8 * cr.l, my = y + Math.sin(cr.a) * s.r * 0.8 * cr.l;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(mx, my);
+      ctx.lineTo(mx + Math.cos(cr.a + cr.b) * s.r * 0.7, my + Math.sin(cr.a + cr.b) * s.r * 0.7); ctx.stroke();
+    }
+  } else if (s.type === 'moving') {
+    ctx.strokeStyle = rgba(c, 0.18); ctx.lineWidth = 2; ctx.setLineDash([3, 9]);
+    ctx.beginPath(); ctx.moveTo(s.bx - s.amp, s.y); ctx.lineTo(s.bx + s.amp, s.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (target) {
+    ctx.strokeStyle = rgba(c, 0.22 + 0.1 * Math.sin(time * 6)); ctx.lineWidth = 1.5; ctx.setLineDash([6, 10]);
+    ctx.lineDashOffset = -time * 30; circle(x, y, s.r + 18); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  }
+}
+function drawMine(m) {
+  ctx.globalCompositeOperation = 'lighter';
+  glow(COL.mine, m.x, m.y, 48, 0.45 + 0.2 * Math.sin(time * 8 + m.ph));
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.rot);
+  ctx.beginPath();
+  for (let i = 0; i < 16; i++) { const rr = i % 2 ? m.r * 0.6 : m.r * 1.4, a = i / 16 * TAU; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fillStyle = '#ff2d55'; ctx.fill();
+  ctx.fillStyle = '#2a0010'; circle(0, 0, m.r * 0.38); ctx.fill();
+  ctx.fillStyle = Math.sin(time * 10 + m.ph) > 0 ? '#ffd0d8' : '#ff2d55'; circle(0, 0, m.r * 0.18); ctx.fill();
+  ctx.restore();
+}
+function drawCoin(o) {
+  const y = o.y + Math.sin(time * 4 + o.ph) * 3, w = Math.abs(Math.cos(time * 3 + o.ph));
+  ctx.globalCompositeOperation = 'lighter';
+  glow(COL.gold, o.x, y, 34, 0.75);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#c98510'; ctx.beginPath(); ctx.ellipse(o.x, y, 11 * w + 1.5, 11, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#ffd34a'; ctx.beginPath(); ctx.ellipse(o.x, y, 9 * w + 1, 9, 0, 0, TAU); ctx.fill();
+  if (w > 0.35) {
+    ctx.fillStyle = '#fff6c0'; ctx.beginPath();
+    const pts = [[0, -5], [1.5, -1.5], [5, 0], [1.5, 1.5], [0, 5], [-1.5, 1.5], [-5, 0], [-1.5, -1.5]];
+    for (let i = 0; i < 8; i++) ctx.lineTo(o.x + pts[i][0] * w, y + pts[i][1]);
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawClock(o) {
+  ctx.globalCompositeOperation = 'lighter';
+  glow(COL.clock, o.x, o.y, 34, 0.7);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#0b2a3a'; circle(o.x, o.y, 11); ctx.fill();
+  ctx.strokeStyle = rgba(COL.clock, 1); ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath();
+  ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + Math.cos(time * 4) * 7, o.y + Math.sin(time * 4) * 7);
+  ctx.moveTo(o.x, o.y); ctx.lineTo(o.x, o.y - 5); ctx.stroke();
+}
+function drawMeteor(m) {
+  ctx.globalCompositeOperation = 'lighter';
+  const sp = Math.hypot(m.vx, m.vy) || 1;
+  for (let i = 3; i >= 0; i--) glow(i ? [255, 120, 40] : [255, 220, 140], m.x - m.vx / sp * i * 16, m.y - m.vy / sp * i * 16, 40 - i * 6, 0.7 - i * 0.12);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.rot);
+  ctx.fillStyle = '#4a1a0a'; ctx.beginPath();
+  for (let i = 0; i < 9; i++) { const a = i / 9 * TAU, rr = m.r * (0.85 + ((i * 37) % 7) / 30); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#ff9a4a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#2a0c04'; circle(-4, -3, 3.5); ctx.fill(); circle(5, 4, 2.5); ctx.fill();
+  ctx.restore();
+}
+function drawVoid() {
+  const top = voidY;
+  const bottom = camY + VH + 50;
+  if (top > bottom + 200) return;
+  const c = pal.voidc, key = ckey(c);
+  const x0 = -OX / S - 20, x1 = (CW - OX) / S + 20;
+  ctx.save(); ctx.translate(0, top);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = grad('vg' + key, () => { const g = ctx.createLinearGradient(0, -180, 0, 0); g.addColorStop(0, rgba(c, 0)); g.addColorStop(1, rgba(c, 0.35)); return g; });
+  ctx.fillRect(x0, -180, x1 - x0, 190);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.beginPath(); ctx.moveTo(x0, bottom - top + 400);
+  for (let x = x0; x <= x1 + 20; x += 18) ctx.lineTo(x, Math.sin(x * 0.02 + time * 2) * 9 + Math.sin(x * 0.047 - time * 3.1) * 5 + Math.sin(x * 0.11 + time * 5) * 2);
+  ctx.lineTo(x1 + 20, bottom - top + 400); ctx.closePath();
+  ctx.fillStyle = grad('vb' + key, () => {
+    const g = ctx.createLinearGradient(0, -10, 0, 260);
+    g.addColorStop(0, rgba(c, 0.95)); g.addColorStop(0.08, rgba([c[0] * 0.35, c[1] * 0.35, c[2] * 0.35], 1)); g.addColorStop(1, 'rgb(2,2,6)'); return g;
+  });
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.globalCompositeOperation = 'lighter';
+  const n = Q === 0 ? 12 : 26;
+  for (let i = 0; i < n; i++) {
+    const ex = x0 + ((i * 0.6180339) % 1) * (x1 - x0), ph = (time * (0.25 + (i % 5) * 0.06) + i * 0.37) % 1;
+    glow(c, ex + Math.sin(time + i) * 10, -ph * 160, 7, (1 - ph) * 0.8);
+  }
+  ctx.restore();
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+}
+
+function ballMood() {
+  if (happyT > 0) return 'happy';
+  if (state === 'play' && mode !== 'sprint' && gravityOn && voidY - P.y < 230) return 'scared';
+  for (let i = 0; i < meteors.length; i++) if (Math.hypot(meteors[i].x - P.x, meteors[i].y - P.y) < 120) return 'scared';
+  return 'normal';
+}
+
+function render() {
+  drawBackground();
+  const sx = (Math.random() - 0.5) * shake, sy = (Math.random() - 0.5) * shake;
+  ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * (OX + sx), DPR * (-camY * S + sy));
+
+  // walls
+  const wc = biome().orb;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = grad('wall' + ckey(wc), () => {
+    const g = ctx.createLinearGradient(-8, 0, 8, 0); g.addColorStop(0, rgba(wc, 0)); g.addColorStop(0.5, rgba(wc, 0.18)); g.addColorStop(1, rgba(wc, 0)); return g;
+  });
+  for (const wx of [0, W]) { ctx.save(); ctx.translate(wx, 0); ctx.fillRect(-8, camY - 50, 16, VH + 100); ctx.restore(); }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // personal best line
+  const bh = best[mode].h;
+  if (bh > 30) {
+    const by = -bh * 10;
+    if (by > camY - 40 && by < camY + VH + 40) {
+      ctx.strokeStyle = rgba(COL.gold, passedBest ? 0.15 : 0.45); ctx.lineWidth = 1.5; ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(W, by); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = rgba(COL.gold, passedBest ? 0.25 : 0.7); ctx.font = '700 12px Unbounded, sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText('РЕКОРД ' + bh + ' м', W - 12, by - 8);
+    }
+  }
+
+  const target = (state === 'play' && !P.att) ? findTarget() : null;
+  const top = camY - 120, bot = camY + VH + 120;
+
+  ctx.lineWidth = 1; ctx.setLineDash([2, 10]); ctx.strokeStyle = rgba(COL.mine, 0.16);
+  for (let i = 0; i < mines.length; i++) { const m = mines[i]; if (m.kind === 'orbit' && !m.dead && m.s.y > top - 200 && m.s.y < bot + 200) { circle(m.s.x, m.s.y, m.R); ctx.stroke(); } }
+  ctx.setLineDash([]);
+
+  const oc = biome().orb;
+  for (let i = 0; i < orbs.length; i++) {
+    const o = orbs[i];
+    if (o.y < top || o.y > bot) continue;
+    if (o.kind === 'coin') { drawCoin(o); continue; }
+    if (o.kind === 'clock') { drawClock(o); continue; }
+    const bob = Math.sin(time * 4 + o.ph) * 3;
+    if (o.kind === 'shield') {
+      ctx.globalCompositeOperation = 'lighter'; glow(COL.white, o.x, o.y + bob, 40, 0.5);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.lineWidth = 3;
+      for (let k = 0; k < 6; k++) {
+        ctx.strokeStyle = rgba(rainbowCols[(k * 4 + Math.floor(time * 6)) % 24], 1);
+        ctx.beginPath(); ctx.arc(o.x, o.y + bob, 13, k * TAU / 6 + time * 2, (k + 1) * TAU / 6 + time * 2); ctx.stroke();
+      }
+    } else {
+      ctx.globalCompositeOperation = 'lighter'; glow(oc, o.x, o.y + bob, 18, 0.8);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff'; circle(o.x, o.y + bob, 2.6); ctx.fill();
+    }
+  }
+  for (let i = 0; i < stars.length; i++) { const s = stars[i]; if (s.y > top - 60 && s.y < bot + 60) drawStar(s, s === target); }
+  for (let i = 0; i < mines.length; i++) { const m = mines[i]; if (!m.dead && m.y > top && m.y < bot) drawMine(m); }
+  for (let i = 0; i < meteors.length; i++) if (!meteors[i].dead) drawMeteor(meteors[i]);
+
+  const b = ballDef();
+  // tether / aim line / grab ping
+  if (P.att && !P.dead) {
+    const c = COL[P.att.type];
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = rgba(c, 0.25); ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(P.att.x, P.att.y); ctx.lineTo(P.x, P.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.6;
+    const mx = (P.att.x + P.x) / 2, my = (P.att.y + P.y) / 2;
+    const nx = -(P.y - P.att.y) / P.L, ny = (P.x - P.att.x) / P.L, wob = Math.sin(time * 30) * 2;
+    ctx.beginPath(); ctx.moveTo(P.att.x, P.att.y); ctx.quadraticCurveTo(mx + nx * wob, my + ny * wob, P.x, P.y); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  } else if (target && !P.dead) {
+    ctx.strokeStyle = rgba(COL[target.type], 0.18); ctx.lineWidth = 1.2; ctx.setLineDash([4, 8]);
+    ctx.beginPath(); ctx.moveTo(target.x, target.y); ctx.lineTo(P.x, P.y); ctx.stroke(); ctx.setLineDash([]);
+  } else if (holding && state === 'play' && !P.dead) {
+    const ph = (time * 2) % 1;
+    ctx.strokeStyle = rgba(ballCols(b, time)[0], 0.25 * (1 - ph)); ctx.lineWidth = 2;
+    circle(P.x, P.y, 20 + ph * (K.grab - 20)); ctx.stroke();
+  }
+
+  // particles (under the ball so they never wash out its face)
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < parts.length; i++) { const p = parts[i], k = p.life / p.max; glow(p.c, p.x, p.y, p.size * (0.4 + 0.6 * k), k); }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+
+  // trail (ring buffer, no allocations)
+  if (trN > 1) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    const sp = Math.hypot(P.vx, P.vy), base = ballCols(b, time)[0];
+    let px = 0, py = 0;
+    for (let i = 0; i < trN; i++) {
+      const idx = (trH - trN + i + TRL) % TRL, x = trX[idx], y = trY[idx];
+      if (i > 0) {
+        const k = i / trN;
+        const c = b.look === 'rainbow' ? hueCol(time - i * 0.08) : b.look === 'fire' ? (k > 0.6 ? [255, 200, 80] : [255, 90, 40])
+          : (sp > 950 && b.look !== 'gold' && b.look !== 'hole') ? COL.gold : base;
+        ctx.strokeStyle = rgba(c, k * 0.55); ctx.lineWidth = 1 + k * 9;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
+      }
+      px = x; py = y;
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // the ball
+  if (!P.dead) {
+    const blink = P.inv > 0 && Math.sin(time * 40) > 0;
+    const br = Math.max(BALL_R, 9 / S);   // keep the face readable on narrow phone screens (visual only)
+    drawBall(ctx, P.x, P.y, br, b, time, P.vx, P.vy, ballMood(), blink ? 0.4 : 1, 0.37);
+    if (P.shield) {
+      ctx.lineWidth = 2.5;
+      for (let k = 0; k < 6; k++) {
+        ctx.strokeStyle = rgba(rainbowCols[(k * 4 + Math.floor(time * 8)) % 24], 0.9);
+        ctx.beginPath(); ctx.arc(P.x, P.y, br + 11, k * TAU / 6 - time * 3, (k + 1) * TAU / 6 - time * 3); ctx.stroke();
+      }
+    }
+    if (state === 'play') {
+      let hint = null;
+      if (!gravityOn) hint = 'ЗАЖМИ';
+      else if (runs === 1 && grabs <= 2 && P.att && P.att.attT > 0.5) hint = 'ОТПУСТИ';
+      if (hint) {
+        ctx.font = '900 18px Unbounded, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = rgba(COL.white, 0.6 + 0.4 * Math.sin(time * 6));
+        ctx.fillText(hint, P.x, P.y + 50);
+      }
+    }
+  }
+
+  if (mode !== 'sprint') drawVoid();
+
+  // floating text: dark outline instead of the expensive shadowBlur
+  ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  for (let i = 0; i < pops.length; i++) {
+    const p = pops[i], k = p.life / p.max, sc = k > 0.85 ? 1 + (k - 0.85) * 3 : 1, a = Math.min(1, k * 2);
+    ctx.font = `900 ${(p.size * sc) | 0}px Unbounded, sans-serif`;
+    ctx.strokeStyle = `rgba(0,0,0,${0.45 * a})`; ctx.lineWidth = 4; ctx.strokeText(p.text, p.x, p.y);
+    ctx.fillStyle = rgba(p.c, a); ctx.fillText(p.text, p.x, p.y);
+  }
+
+  // screen-space fx
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (let i = 0; i < warns.length; i++) {
+    const w = warns[i];
+    if (w.done) continue;
+    const x = OX + w.x * S, a = 0.5 + 0.5 * Math.sin(time * 30);
+    ctx.fillStyle = `rgba(255,70,60,${a})`;
+    ctx.beginPath(); ctx.moveTo(x, 96); ctx.lineTo(x - 14, 70); ctx.lineTo(x + 14, 70); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '900 14px Unbounded, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', x, 86);
+  }
+  if (warpT > 0) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.5; ctx.strokeStyle = rgba([255, 230, 160], warpT * 0.45);
+    ctx.beginPath();
+    for (const w of WARP) { const y = ((time * w.sp + w.o) % 1) * (CH + w.len) - w.len; ctx.moveTo(w.x * CW, y); ctx.lineTo(w.x * CW, y + w.len); }
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.drawImage(vigCv, 0, 0, CW, CH);
+  if (slowT > 0) { ctx.fillStyle = `rgba(255,80,130,${slowT * 0.25})`; ctx.fillRect(0, 0, CW, CH); }
+  if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.6})`; ctx.fillRect(0, 0, CW, CH); }
+}
+
+// =====================================================================
+//  HUD
+// =====================================================================
+const hH = document.getElementById('hH'), hS = document.getElementById('hS'), hD = document.getElementById('hD'), hC = document.getElementById('hC');
+const comboEl = document.getElementById('combo'), cx = document.getElementById('cx'), cbi = document.getElementById('cbi');
+const timerEl = document.getElementById('timer');
+const hudCache = { h: -1, s: -1, d: -1, c: -1, combo: -1, on: -1, t: -1, w: -1 };
+function updateHud() {
+  if (!R || state === 'menu') return;
+  const h = Math.floor(maxH), s = h + bonus;
+  if (h !== hudCache.h) { hH.textContent = h + ' м'; hudCache.h = h; }
+  if (s !== hudCache.s) { hS.textContent = s; hudCache.s = s; }
+  if (R.orbs !== hudCache.d) { hD.textContent = '✦ ' + R.orbs; hudCache.d = R.orbs; }
+  if (R.coins !== hudCache.c) { hC.textContent = R.coins; hudCache.c = R.coins; }
+  const on = state === 'play' && combo >= 2 ? 1 : 0;
+  if (on !== hudCache.on) { comboEl.classList.toggle('on', !!on); hudCache.on = on; }
+  if (combo !== hudCache.combo) { cx.textContent = 'ЦЕПЬ ' + combo + '  ·  ×' + mult(); hudCache.combo = combo; }
+  if (on) { const w = Math.round(clamp(comboT / K.chain, 0, 1) * 100); if (w !== hudCache.w) { cbi.style.width = w + '%'; hudCache.w = w; } }
+  if (mode === 'sprint') {
+    const t = Math.ceil(timeLeft);
+    if (t !== hudCache.t) {
+      timerEl.textContent = t; hudCache.t = t;
+      timerEl.classList.toggle('low', t <= 10);
+      if (t <= 10 && t > 0 && state === 'play' && gravityOn) tone(note(15), 0.08, 'square', 0.03);
+    }
+  }
+  if (state === 'play') checkMissions();
+}
+
+// =====================================================================
+//  MISSIONS / GOALS / WALLET
+// =====================================================================
+function makeMission(type) {
+  const t = tier(), d = MT[type];
+  return { type, n: d.n(t), reward: 30 + 15 * t, base: d.cum ? save.totals[d.cum] : 0, done: false };
+}
+function newMission() {
+  const used = save.missions.map(m => m.type);
+  const pool = Object.keys(MT).filter(k => !used.includes(k));
+  return makeMission(pool[Math.random() * pool.length | 0]);
+}
+function missionVal(m) {
+  const d = MT[m.type], runV = R ? d.run(R) : 0;
+  return d.cum ? save.totals[d.cum] - m.base + (R && !R.final ? runV : 0) : runV;
+}
+function refillMissions() {
+  save.missions = save.missions.filter(m => !m.done);
+  if (save.mdone === 0 && save.missions.length === 0) save.missions = ['height', 'orbs', 'combo'].map(makeMission);
+  while (save.missions.length < 3) save.missions.push(newMission());
+  persist();
+}
+function checkMissions() {
+  for (const m of save.missions) {
+    if (m.done || missionVal(m) < m.n) continue;
+    m.done = true;
+    const oldTier = tier();
+    save.mdone++; save.dust += m.reward; missionDust += m.reward;
+    let t1 = 'ЗАДАНИЕ ВЫПОЛНЕНО  +' + m.reward + ' ✦';
+    if (tier() > oldTier) { save.coins += 5; rankCoins += 5; t1 = 'НОВЫЙ РАНГ ' + (tier() + 1) + '!  +' + m.reward + ' ✦  +5 МОНЕТ'; }
+    persist();
+    toast(t1, MT[m.type].t(m.n));
+    [0, 4, 7, 12].forEach((k, i) => tone(note(10 + k, 220), 0.7, 'triangle', 0.08, i * 0.07));
+    if (state === 'play' && P) { ring(P.x, P.y, COL.gold, 30, 420); happy(1.5); }
+  }
+}
+function missionsHTML(title) {
+  let h = `<div class="mh">${title}</div>`;
+  for (const m of save.missions) {
+    const v = Math.min(m.n, Math.floor(missionVal(m)));
+    const pct = m.done ? 100 : Math.round(v / m.n * 100);
+    h += `<div class="mrow${m.done ? ' done' : ''}"><div class="ic">${m.done ? '✓' : '◇'}</div>
+      <div class="mt">${MT[m.type].t(m.n)}<div class="bar"><i style="width:${pct}%"></i></div></div>
+      <div class="mp">${m.done ? '' : v + '/' + m.n}</div><div class="mr">+${m.reward} ✦</div></div>`;
+  }
+  return h;
+}
+const curIcon = cur => cur === 'coin' ? '<i class="coin"></i>' : '✦';
+const have = cur => cur === 'coin' ? save.coins : save.dust;
+function nextGoal() {
+  const c = [];
+  for (const b of BALLS) if (!save.balls[b.id]) c.push({ name: b.name, cur: b.cur, cost: b.cost });
+  for (const t of THEMES) if (!save.themes.includes(t.id)) c.push({ name: 'фон «' + t.name + '»', cur: 'coin', cost: t.cost });
+  if (!c.length) return null;
+  for (const x of c) { x.p = have(x.cur) / x.cost; x.left = x.cost - have(x.cur); }
+  const ready = c.filter(x => x.left <= 0);
+  if (ready.length) return ready.sort((a, b) => b.cost - a.cost)[0];
+  return c.sort((a, b) => b.p - a.p)[0];
+}
+function goalHTML() {
+  const g = nextGoal();
+  if (!g) return '<div class="goal ready">Ты собрал всё! Настоящая легенда.</div>';
+  if (g.left <= 0) return `<div class="goal ready">Можно купить: <b>${g.name}</b>!</div>`;
+  return `<div class="goal">Следующая цель: <b>${g.name}</b> — ещё ${g.left} ${curIcon(g.cur)}<div class="gbar"><i style="width:${Math.round(g.p * 100)}%"></i></div></div>`;
+}
+function ballsAffordable() {
+  for (const b of BALLS) {
+    const own = save.balls[b.id];
+    if (!own) { if (have(b.cur) >= b.cost) return true; continue; }
+    for (const st of STATS) { const l = own[st.id]; if (l < 5 && save.dust >= upCost(b, l)) return true; }
+  }
+  return false;
+}
+const themesAffordable = () => THEMES.some(t => !save.themes.includes(t.id) && save.coins >= t.cost);
+function refreshWallet() {
+  document.querySelectorAll('.dustv').forEach(e => e.textContent = save.dust);
+  document.querySelectorAll('.coinv').forEach(e => e.textContent = save.coins);
+  document.querySelectorAll('.rankv').forEach(e => e.textContent = tier() + 1);
+  const bars = [0, 1, 2].map(i => `<i${save.mdone % 3 > i ? ' class="on"' : ''}></i>`).join('');
+  document.querySelectorAll('.rankbar').forEach(e => e.innerHTML = bars);
+  const ba = ballsAffordable(), ta = themesAffordable();
+  document.querySelectorAll('.dballs').forEach(e => e.classList.toggle('hidden', !ba));
+  document.querySelectorAll('.dthemes').forEach(e => e.classList.toggle('hidden', !ta));
+}
+function renderModes() {
+  let h = '';
+  for (const m of MODES) {
+    const locked = m.unlockH && best.classic.h < m.unlockH, sel = save.mode === m.id, B = best[m.id];
+    h += `<button class="mode${sel ? ' on' : ''}${locked ? ' locked' : ''}" data-mode="${m.id}">
+      <div class="mi">${locked ? '🔒' : m.icon}</div><div class="mn">${m.name}</div>
+      <div class="md">${locked ? `Открой: ${m.unlockH} м в Классике` : m.desc}</div>
+      <div class="mb">${B.score ? 'рекорд ' + B.score : ''}</div></button>`;
+  }
+  document.getElementById('modes').innerHTML = h;
+}
+function refreshMenu() {
+  renderModes();
+  document.getElementById('goal1').innerHTML = goalHTML();
+  document.getElementById('ms1').innerHTML = missionsHTML('ЗАДАНИЯ');
+  refreshWallet();
+}
+
+// =====================================================================
+//  SHOP
+// =====================================================================
+let shopTab = 'balls', shopFrom = 'menu', previews = [];
+function renderShop() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === shopTab));
+  let h = '';
+  if (shopTab === 'balls') {
+    for (const b of BALLS) {
+      const own = save.balls[b.id], sel = save.ball === b.id, rr = RARITY[b.rar];
+      h += `<div class="card ball r${b.rar}${sel ? ' sel' : ''}" style="--rc:${rr.c}">
+        <div class="bhead"><canvas class="pv" data-ball="${b.id}"></canvas>
+          <div><div class="cn">${b.name}</div><div class="rar">${rr.name}</div></div></div>
+        <div class="cd">${b.perk}</div>`;
+      if (own) {
+        for (const st of STATS) {
+          const l = own[st.id], cost = upCost(b, l);
+          let pips = ''; for (let i = 0; i < 5; i++) pips += `<i class="${i < l ? 'on' : ''}"></i>`;
+          const btn = l >= 5 ? '<button class="btn xs max">МАКС</button>'
+            : `<button class="btn xs buy${save.dust < cost ? ' poor' : ''}" data-bup="${b.id}:${st.id}">${cost} ✦</button>`;
+          h += `<div class="st"><div class="sti"><div class="stn">${st.name}<span>${st.val(l, b)}</span></div><div class="pips">${pips}</div></div>${btn}</div>`;
+        }
+      }
+      h += sel ? '<button class="btn xs wide sel">ВЫБРАН</button>'
+        : own ? `<button class="btn xs wide" data-ball="${b.id}">ВЫБРАТЬ</button>`
+        : `<button class="btn xs wide buy${b.cur === 'coin' ? ' coinbuy' : ''}${have(b.cur) < b.cost ? ' poor' : ''}" data-ball="${b.id}">КУПИТЬ · ${b.cost} ${curIcon(b.cur)}</button>`;
+      h += '</div>';
+    }
+  } else {
+    for (const t of THEMES) {
+      const own = save.themes.includes(t.id), sel = save.theme === t.id, z = t.zones[0];
+      const bg = `radial-gradient(circle at 28% 32%,${rgba(z.neb, .7)},transparent 55%),radial-gradient(circle at 76% 70%,${rgba(z.neb2, .6)},transparent 50%),linear-gradient(180deg,${rgba(z.bg2, 1)},${rgba(z.bg1, 1)})`;
+      let dots = '';
+      for (let i = 0; i < 7; i++) dots += `<i style="left:${(i * 37 + 9) % 92}%;top:${(i * 53 + 15) % 80}%;width:${2 + (i % 3)}px;height:${2 + (i % 3)}px"></i>`;
+      h += `<div class="card${sel ? ' sel' : ''}"><div class="tpv" style="background:${bg}">${dots}</div>
+        <div class="cn">${t.name}</div><div class="cd">${t.desc}</div>`;
+      h += sel ? '<button class="btn xs wide sel">ВЫБРАН</button>'
+        : own ? `<button class="btn xs wide" data-theme="${t.id}">ВЫБРАТЬ</button>`
+        : `<button class="btn xs wide buy coinbuy${save.coins < t.cost ? ' poor' : ''}" data-theme="${t.id}">КУПИТЬ · ${t.cost} <i class="coin"></i></button>`;
+      h += '</div>';
+    }
+  }
+  const grid = document.getElementById('grid');
+  grid.innerHTML = h;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  previews = [...grid.querySelectorAll('canvas.pv')].map((c, i) => {
+    c.width = Math.round(72 * dpr); c.height = Math.round(72 * dpr);
+    return { g: c.getContext('2d'), b: BALLS.find(x => x.id === c.dataset.ball), dpr, seed: i * 0.13 };
+  });
+  refreshWallet();
+}
+function drawPreviews() {
+  const t = performance.now() / 1000;
+  for (const p of previews) {
+    p.g.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
+    p.g.clearRect(0, 0, 72, 72);
+    const mood = ((t + p.seed * 7) % 6) < 1.2 ? 'happy' : 'normal';
+    drawBall(p.g, 36, 38, 14, p.b, t, Math.cos(t * 1.3 + p.seed) * 120, Math.sin(t * 1.7) * 60, mood, 1, p.seed, 0.5);
+  }
+}
+const shopOpen = () => !document.getElementById('shop').classList.contains('hidden');
+function openShop(from, tab) {
+  shopFrom = from; shopTab = tab || shopTab;
+  document.getElementById(from).classList.add('hidden');
+  document.getElementById('shop').classList.remove('hidden');
+  document.getElementById('shop').scrollTop = 0;
+  renderShop();
+}
+function closeShop() {
+  document.getElementById('shop').classList.add('hidden');
+  previews = [];
+  if (shopFrom === 'menu') { refreshMenu(); document.getElementById('menu').classList.remove('hidden'); }
+  else { document.getElementById('goal2').innerHTML = goalHTML(); refreshWallet(); document.getElementById('over').classList.remove('hidden'); }
+}
+const nope = () => tone(110, 0.2, 'square', 0.04);
+function fanfare() { [0, 2, 4, 7, 9, 12].forEach((k, i) => tone(note(10 + k, 220), 0.6, 'triangle', 0.08, i * 0.06)); }
+function buyOrPickBall(id) {
+  const b = BALLS.find(x => x.id === id);
+  if (!save.balls[id]) {
+    if (have(b.cur) < b.cost) { nope(); return; }
+    if (b.cur === 'coin') save.coins -= b.cost; else save.dust -= b.cost;
+    save.balls[id] = newBallSave();
+    fanfare(); toast('НОВЫЙ ШАРИК!', b.name + ' — ' + RARITY[b.rar].name);
+  } else tone(note(12), 0.25, 'sine', 0.07);
+  save.ball = id; persist(); calcK(); renderShop();
+}
+function upgradeBall(id, stat) {
+  const b = BALLS.find(x => x.id === id), own = save.balls[id];
+  if (!own) return;
+  const l = own[stat];
+  if (l >= 5) return;
+  const cost = upCost(b, l);
+  if (save.dust < cost) { nope(); return; }
+  save.dust -= cost; own[stat] = l + 1; persist(); calcK();
+  [0, 4, 7].forEach((k, i) => tone(note(8 + k + l, 220), 0.5, 'triangle', 0.09, i * 0.06));
+  renderShop();
+}
+function buyOrPickTheme(id) {
+  const t = THEMES.find(x => x.id === id);
+  if (!save.themes.includes(id)) {
+    if (save.coins < t.cost) { nope(); return; }
+    save.coins -= t.cost; save.themes.push(id);
+    fanfare(); toast('НОВЫЙ ФОН!', t.name);
+  } else tone(note(12), 0.25, 'sine', 0.07);
+  save.theme = id; biomeIdx = 0; persist(); renderShop();
+}
+
+// =====================================================================
+//  INPUT
+// =====================================================================
+function press() {
+  if (paused) { setPause(false); return; }
+  if (shopOpen()) return;
+  if (state === 'menu') { startGame(); return; }
+  if (state === 'dead') { if (performance.now() - deadAt > 550) startGame(); return; }
+  if (state === 'play') { initAudio(); holding = true; }
+}
+function unpress() { holding = false; }
+function setPause(p) {
+  if (p && state !== 'play') return;
+  paused = p; holding = false;
+  document.getElementById('pausep').classList.toggle('hidden', !p);
+  if (AC) { if (p) AC.suspend(); else AC.resume(); }
+}
+// buttons must not keep focus, otherwise Space/Enter would "click" them again
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (b) b.blur(); });
+const on = (id, f) => document.getElementById(id).addEventListener('click', f);
+on('bPlay', () => startGame());
+on('bAgain', () => startGame());
+on('bMenu', () => showMenu());
+on('bBalls', () => { initAudio(); openShop('menu', 'balls'); });
+on('bThemes', () => { initAudio(); openShop('menu', 'themes'); });
+on('bShop2', () => { initAudio(); openShop('over', 'balls'); });
+on('bBack', closeShop);
+on('bPause', () => setPause(true));
+on('bResume', () => setPause(false));
+on('bQuit', quitRun);
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { shopTab = t.dataset.tab; renderShop(); tone(note(9), 0.15, 'sine', 0.05); }));
+document.getElementById('grid').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.bup) { const [id, st] = b.dataset.bup.split(':'); upgradeBall(id, st); }
+  else if (b.dataset.ball) buyOrPickBall(b.dataset.ball);
+  else if (b.dataset.theme) buyOrPickTheme(b.dataset.theme);
+});
+document.getElementById('modes').addEventListener('click', e => {
+  const b = e.target.closest('.mode'); if (!b) return;
+  initAudio();
+  const m = MODES.find(x => x.id === b.dataset.mode);
+  if (m.unlockH && best.classic.h < m.unlockH) { nope(); toast('ПОКА ЗАКРЫТО', `Поднимись на ${m.unlockH} м в Классике`); return; }
+  save.mode = m.id; persist(); reset(); renderModes();
+  tone(note(10), 0.2, 'sine', 0.07);
+});
+addEventListener('pointerdown', e => {
+  const t = e.target;
+  if (t.closest && (t.closest('.panel') || t.closest('#bPause'))) return;
+  if (e.button === 0 || e.pointerType !== 'mouse') { e.preventDefault(); press(); }
+});
+addEventListener('pointerup', unpress);
+addEventListener('pointercancel', unpress);
+addEventListener('blur', () => { holding = false; if (state === 'play') setPause(true); });
+addEventListener('contextmenu', e => e.preventDefault());
+const HOLD_KEYS = ['Space', 'Enter', 'ArrowUp', 'KeyW'];
+addEventListener('keydown', e => {
+  if (HOLD_KEYS.includes(e.code)) { e.preventDefault(); if (!e.repeat) press(); }
+  else if (e.code === 'KeyM') { initAudio(); setMute(!muted); }
+  else if (e.code === 'Escape' && shopOpen()) closeShop();
+  else if (e.code === 'KeyP' || e.code === 'Escape') { if (state === 'play') setPause(!paused); }
+});
+addEventListener('keyup', e => { if (HOLD_KEYS.includes(e.code)) unpress(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') setPause(true); });
+
+// =====================================================================
+//  MAIN LOOP (+ automatic quality)
+// =====================================================================
+setMute(muted);
+refillMissions();
+reset();
+refreshMenu();
+if (save.refund > 0) {
+  setTimeout(() => toast('ИГРА ОБНОВИЛАСЬ', `Прокачка теперь у каждого шарика своя. Вернули ${save.refund} ✦`), 500);
+  save.refund = 0; persist();
+}
+let last = performance.now(), frameEMA = 16, slowFor = 0, playTime = 0;
+function frame(now) {
+  const raw = now - last;
+  const rdt = Math.max(0, Math.min(0.05, raw / 1000)); last = now;
+  if (!paused) {
+    // auto-quality: if frames stay slow for 2 s of play, drop one quality level
+    if (state === 'play' && raw > 0 && raw < 100 && !document.hidden) {
+      playTime += rdt;
+      frameEMA = frameEMA * 0.95 + raw * 0.05;
+      if (playTime > 3 && frameEMA > 24) slowFor += rdt; else slowFor = 0;
+      if (slowFor > 2 && Q > 0) { Q--; slowFor = 0; frameEMA = 16; resize(); }
+    }
+    if (slowT > 0) slowT = Math.max(0, slowT - rdt);
+    const ts = state === 'dying' ? 0.25 : slowT > 0 ? 0.4 : 1;
+    const dt = rdt * ts;
+    time += dt;
+    if (state === 'play') {
+      const n = Math.min(6, Math.max(1, Math.ceil(dt / (1 / 180))));
+      for (let i = 0; i < n && state === 'play'; i++) step(dt / n);
+      cleanup();
+    } else {
+      updateWorld(dt);
+      if (state === 'dying') { dyingT -= rdt; if (dyingT <= 0) finishDeath(); }
+      if (state === 'menu') P.y = P.floatY + Math.sin(time * 2.2) * 5;
+    }
+    updateFx(dt, rdt);
+    updateHud();
+  }
+  render();
+  if (previews.length) drawPreviews();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
