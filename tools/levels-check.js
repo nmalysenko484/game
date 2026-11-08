@@ -61,6 +61,7 @@ const BOT = `
         if (Math.abs(B.y - l.y) < 16 && laserOn(l, t)) { const cx = laserX(l, t); if (B.x > cx - l.len / 2 - 10 && B.x < cx + l.len / 2 + 10) return { ok: false }; }
       }
       for (const h of wells) if (Math.hypot(B.x - h.x, B.y - h.y) < h.core + 14) return { ok: false };
+      for (const v of vortexes) if (!v.good && Math.hypot(B.x - v.x, B.y - v.y) < v.core + 14) return { ok: false };
       for (const m of mines) {
         if (m.dead) continue;
         let mx, my;
@@ -113,6 +114,7 @@ const BOT = `
         if (b.cap > 0) continue;
         if (wall.some(l => Math.abs(b.y - l.y) < 14 && b.x > l.cx - l.len / 2 - 8 && b.x < l.cx + l.len / 2 + 8)) break;
         if (wells.some(h => Math.hypot(b.x - h.x, b.y - h.y) < h.core + 10)) break;
+        if (vortexes.some(v => !v.good && Math.hypot(b.x - v.x, b.y - v.y) < v.core + 10)) break;
         if (b.y > s.y + 700) break;
         if (hit < 0) { for (let g = 0; g < gems.length; g++) if (!got[g] && samples[g].some(q => Math.hypot(b.x - q.x, b.y - q.y) < 26)) { hit = g; break; } }
         else if (i > 6 && stars.some(t => Math.hypot(b.x - t.x, b.y - t.y) < K.grab * 0.9)) { got[hit] = true; break; }

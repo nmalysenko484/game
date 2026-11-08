@@ -72,6 +72,7 @@
   .wallet b{color:#fff;font-size:17px}
   .wallet .dust,.wallet .dust b{color:#ffe27a}
   .wallet .coins b{color:#ffd34a}
+  .rankb{margin-left:8px;font-size:10px;color:#ffe27a;letter-spacing:.04em}
   .rankbar{display:inline-flex;gap:3px;margin-left:8px;vertical-align:middle}
   .rankbar i{width:14px;height:5px;border-radius:3px;background:rgba(255,255,255,.15)}
   .rankbar i.on{background:#8fd8ff;box-shadow:0 0 6px #8fd8ff}
@@ -137,7 +138,8 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;text-align:left}
   .card{padding:14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:10px}
   .card.ball{border-color:var(--rc);box-shadow:inset 0 0 26px -12px var(--rc)}
-  .card.r3{animation:leg 2.4s ease-in-out infinite}
+  .card.r3,.card.r4{animation:leg 2.4s ease-in-out infinite}
+  .card.r4{background:linear-gradient(160deg,rgba(255,95,162,.12),rgba(255,255,255,.04))}
   @keyframes leg{50%{box-shadow:inset 0 0 34px -8px var(--rc),0 0 16px -4px var(--rc)}}
   .card.sel{outline:2px solid #8fd8ff;outline-offset:2px}
   .bhead{display:flex;gap:12px;align-items:center}
@@ -196,6 +198,8 @@
   .lvb.cur{border-color:#8fd8ff;background:rgba(120,190,255,.18);box-shadow:0 0 18px rgba(120,190,255,.5);animation:leg 1.6s ease-in-out infinite;--rc:#8fd8ff}
   .lvb.locked{opacity:.3;cursor:default}
   .wlock{margin-top:12px;font-size:12px;line-height:1.5;color:#ffd75a}
+  .wlock .wl2{margin-top:8px;font-size:11px;color:var(--dim)}
+  .btn svg{width:1em;height:1em;vertical-align:-.12em}
   .bigstars{display:flex;justify-content:center;gap:12px;margin-top:16px}
   .bst{display:flex;flex-direction:column;align-items:center;gap:6px;width:86px}
   .bst svg{width:58px;height:58px;color:rgba(255,255,255,.13)}
@@ -282,7 +286,7 @@ window.fontReady = (function () {
     <div class="wallet">
       <span class="dust">✦ <b class="dustv">0</b></span>
       <span class="coins"><i class="coin"></i> <b class="coinv">0</b></span>
-      <span>РАНГ <b class="rankv">1</b><span class="rankbar"></span></span>
+      <span>РАНГ <b class="rankv">1</b><span class="rankbar"></span><span class="rankb"></span></span>
     </div>
     <div class="modes" id="modes"></div>
     <div class="btns"><button class="btn primary big" id="bPlay">ИГРАТЬ</button></div>
@@ -353,6 +357,7 @@ window.fontReady = (function () {
     <div class="earn" id="lrE"></div>
     <div class="btns">
       <button class="btn primary" id="bLvNext">ДАЛЬШЕ ▶</button>
+      <button class="btn buy hidden" id="bLvOpen"></button>
       <button class="btn" id="bLvRetry">ЗАНОВО</button>
       <button class="btn" id="bLvMap">КАРТА</button>
     </div>
@@ -412,22 +417,22 @@ const THEMES = [
     { name: 'Солнечный ветер',    bg1: [18, 8, 4],  bg2: [56, 22, 8],  neb: [255, 140, 40], neb2: [255, 60, 40],  voidc: [255, 110, 30], orb: [255, 225, 130] },
     { name: 'Горизонт событий',   bg1: [2, 2, 4],   bg2: [22, 8, 14],  neb: [255, 40, 60],  neb2: [180, 180, 255], voidc: [255, 255, 255], orb: [255, 255, 255] },
   ]},
-  { id: 'ocean', name: 'Глубины', cost: 10, style: 'bubbles', desc: 'Пузыри и морская бездна', zones: [
+  { id: 'ocean', name: 'Глубины', cost: 15, style: 'bubbles', desc: 'Пузыри и морская бездна', zones: [
     { name: 'Лагуна',          bg1: [2, 18, 36], bg2: [6, 52, 90],  neb: [40, 200, 255], neb2: [20, 120, 200], voidc: [60, 255, 220], orb: [170, 255, 240] },
     { name: 'Коралловый риф',  bg1: [18, 8, 36], bg2: [52, 26, 80], neb: [255, 120, 160], neb2: [80, 200, 255], voidc: [255, 90, 150], orb: [255, 200, 220] },
     { name: 'Бездна',          bg1: [1, 4, 12],  bg2: [4, 16, 40],  neb: [40, 80, 255],  neb2: [100, 40, 255], voidc: [120, 90, 255], orb: [150, 200, 255] },
   ]},
-  { id: 'candy', name: 'Сладкий мир', cost: 20, style: 'candy', desc: 'Посыпка, зефир и карамель', zones: [
+  { id: 'candy', name: 'Сладкий мир', cost: 30, style: 'candy', desc: 'Посыпка, зефир и карамель', zones: [
     { name: 'Зефирные облака',   bg1: [44, 20, 60], bg2: [110, 56, 124], neb: [255, 170, 220], neb2: [170, 200, 255], voidc: [255, 120, 200], orb: [255, 240, 160] },
     { name: 'Мятная долина',     bg1: [14, 46, 54], bg2: [40, 104, 104], neb: [150, 255, 220], neb2: [255, 200, 230], voidc: [100, 255, 200], orb: [255, 255, 255] },
     { name: 'Карамельный закат', bg1: [54, 22, 16], bg2: [124, 58, 44],  neb: [255, 190, 120], neb2: [255, 120, 170], voidc: [255, 150, 80],  orb: [255, 250, 200] },
   ]},
-  { id: 'synth', name: 'Синтвейв', cost: 35, style: 'grid', desc: 'Неоновое солнце и ретро-сетка', zones: [
+  { id: 'synth', name: 'Синтвейв', cost: 50, style: 'grid', desc: 'Неоновое солнце и ретро-сетка', zones: [
     { name: 'Неоновое шоссе', bg1: [10, 2, 30], bg2: [50, 10, 80],  neb: [255, 40, 200], neb2: [40, 200, 255], voidc: [255, 40, 200], orb: [80, 240, 255] },
     { name: 'Ретро-закат',    bg1: [30, 4, 40], bg2: [100, 18, 84], neb: [255, 120, 60], neb2: [255, 40, 160], voidc: [255, 140, 40], orb: [255, 230, 120] },
     { name: 'Киберночь',      bg1: [2, 4, 20],  bg2: [10, 20, 60],  neb: [60, 255, 200], neb2: [160, 60, 255], voidc: [60, 255, 180], orb: [200, 255, 240] },
   ]},
-  { id: 'aurora', name: 'Сияние', cost: 50, style: 'aurora', desc: 'Северное сияние и снегопад', zones: [
+  { id: 'aurora', name: 'Сияние', cost: 80, style: 'aurora', desc: 'Северное сияние и снегопад', zones: [
     { name: 'Полярная ночь',    bg1: [2, 8, 20],  bg2: [8, 28, 50],  neb: [60, 255, 160], neb2: [80, 160, 255],  voidc: [120, 255, 200], orb: [200, 255, 230] },
     { name: 'Ледяные вершины',  bg1: [6, 10, 30], bg2: [20, 40, 80], neb: [120, 200, 255], neb2: [200, 120, 255], voidc: [160, 200, 255], orb: [230, 240, 255] },
     { name: 'Розовый рассвет',  bg1: [20, 8, 30], bg2: [60, 30, 70], neb: [255, 120, 200], neb2: [120, 255, 200], voidc: [255, 140, 220], orb: [255, 220, 240] },
@@ -439,32 +444,40 @@ const RARITY = [
   { name: 'редкий', c: '#5ab8ff' },
   { name: 'эпический', c: '#b77bff' },
   { name: 'легендарный', c: '#ffb238' },
+  { name: 'мифический', c: '#ff5fa2' },
 ];
 // Every ball: own look, own perk, own upgrade track. Pricier = rarer = stronger.
 const BALLS = [
   { id: 'spark',   name: 'Искорка',     rar: 0, cur: 'dust', cost: 0,    look: 'basic',   c: [190, 240, 255], c2: [110, 190, 255],
     perk: 'Твоя первая подружка. Простая и весёлая.', fx: {} },
-  { id: 'ember',   name: 'Уголёк',      rar: 1, cur: 'dust', cost: 400,  look: 'fire',    c: [255, 170, 70],  c2: [255, 80, 30],
+  { id: 'ember',   name: 'Уголёк',      rar: 1, cur: 'dust', cost: 600,  look: 'fire',    c: [255, 170, 70],  c2: [255, 80, 30],
     perk: 'Огненный хвост. Цепь держится на 1 с дольше.', fx: { chain: 1 } },
-  { id: 'slime',   name: 'Слаймик',     rar: 1, cur: 'dust', cost: 1000, look: 'slime',   c: [140, 255, 130], c2: [40, 190, 90],
+  { id: 'slime',   name: 'Слаймик',     rar: 1, cur: 'dust', cost: 1500, look: 'slime',   c: [140, 255, 130], c2: [40, 190, 90],
     perk: 'Раз за забег отпрыгивает от пустоты. Пружинит от стен.', fx: { rescue: 1, bouncy: 1 } },
-  { id: 'volt',    name: 'Вольт',       rar: 2, cur: 'dust', cost: 2200, look: 'volt',    c: [255, 245, 130], c2: [120, 200, 255],
+  { id: 'volt',    name: 'Вольт',       rar: 2, cur: 'dust', cost: 3500, look: 'volt',    c: [255, 245, 130], c2: [120, 200, 255],
     perk: 'Встроенный магнит для искр и +30% искр.', fx: { magnet: 2, dust: 0.3 } },
-  { id: 'ghost',   name: 'Призрачок',   rar: 2, cur: 'coin', cost: 20,   look: 'ghost',   c: [225, 215, 255], c2: [150, 130, 255],
+  { id: 'ghost',   name: 'Призрачок',   rar: 2, cur: 'coin', cost: 30,   look: 'ghost',   c: [225, 215, 255], c2: [150, 130, 255],
     perk: 'Раз в 12 секунд пролетает сквозь мину или метеорит.', fx: { phase: 12 } },
-  { id: 'goldie',  name: 'Голди',       rar: 3, cur: 'dust', cost: 5000, look: 'gold',    c: [255, 215, 90],  c2: [230, 140, 30],
+  { id: 'goldie',  name: 'Голди',       rar: 3, cur: 'dust', cost: 8000, look: 'gold',    c: [255, 215, 90],  c2: [230, 140, 30],
     perk: '+60% искр, а монеты сами летят к тебе.', fx: { dust: 0.6, coinMag: 1 } },
-  { id: 'unicorn', name: 'Единорожка',  rar: 3, cur: 'coin', cost: 50,   look: 'rainbow', c: null, c2: null,
+  { id: 'unicorn', name: 'Единорожка',  rar: 3, cur: 'coin', cost: 80,   look: 'rainbow', c: null, c2: null,
     perk: 'Старт со щитом и новый щит каждые 300 м. +20% искр.', fx: { shield: 1, regen: 300, dust: 0.2 } },
-  { id: 'hole',    name: 'Чёрная дыра', rar: 3, cur: 'coin', cost: 120,  look: 'hole',    c: [190, 120, 255], c2: [255, 130, 60],
+  { id: 'hole',    name: 'Чёрная дыра', rar: 3, cur: 'coin', cost: 180,  look: 'hole',    c: [190, 120, 255], c2: [255, 130, 60],
     perk: 'Ест мины и метеориты (раз в 6 с), огромный магнит, катапульта.', fx: { eat: 6, magnet: 3, coinMag: 1, rescue: 1, dust: 0.4 } },
+  // mythic: long-term goals
+  { id: 'comet',   name: 'Комета',      rar: 4, cur: 'dust', cost: 15000, look: 'comet',  c: [200, 240, 255], c2: [90, 140, 255],
+    perk: 'Летит на 15% быстрее, ледяной хвост, магнит. +80% искр.', fx: { launch: 1.15, magnet: 3, dust: 0.8 } },
+  { id: 'dragon',  name: 'Дракончик',   rar: 4, cur: 'coin', cost: 300,   look: 'dragon', c: [130, 235, 120], c2: [40, 150, 80],
+    perk: 'Новый щит каждые 250 м, раз в 10 с пролетает сквозь опасность. +60% искр.', fx: { shield: 1, regen: 250, phase: 10, dust: 0.6 } },
+  { id: 'cat',     name: 'Космокот',    rar: 4, cur: 'dust', cost: 40000, look: 'cat',    c: [170, 140, 245], c2: [100, 70, 190],
+    perk: 'Девять жизней: 3 катапульты, ест мины, огромный магнит. +120% искр.', fx: { rescue: 3, eat: 5, magnet: 4, coinMag: 1, dust: 1.2 } },
 ];
 const STATS = [
   { id: 'rope',   name: 'Трос',   val: (l) => `+${l * 18} захват` },
   { id: 'engine', name: 'Форсаж', val: (l) => `+${l * 15}% разгон` },
   { id: 'magnet', name: 'Магнит', val: (l, b) => { const m = Math.min(8, (b.fx.magnet || 0) + l); return m ? `радиус ${60 + m * 35}` : 'нет'; } },
 ];
-const UP_COST = [40, 100, 200, 350, 550];
+const UP_COST = [60, 150, 300, 500, 800];
 const upCost = (b, l) => Math.round(UP_COST[l] * (1 + BALLS.indexOf(b) * 0.45) / 5) * 5;
 
 const MODES = [
@@ -478,7 +491,7 @@ const WORLDS = [
   { name: 'Шипастые скалы', theme: 'aurora', zone: 1, desc: 'Стены в шипах и вращающиеся мельницы. Не задень!' },
   { name: 'Минное поле',    theme: 'space',  zone: 1, desc: 'Мины кружат вокруг звёзд. Лети, когда путь свободен.' },
   { name: 'Лазеры',         theme: 'synth',  zone: 0, desc: 'Лазеры мигают и ездят. Проскочи, пока путь открыт.' },
-  { name: 'Воронки',        theme: 'ocean',  zone: 0, desc: 'Фиолетовые воронки затягивают и выплёвывают вниз. Золотые — подкидывают!' },
+  { name: 'Воронки',        theme: 'ocean',  zone: 0, desc: 'Фиолетовые воронки засасывают — не попадись! Они то тянут, то затихают. Золотые — подкидывают.' },
   { name: 'Пинбол',         theme: 'candy',  zone: 0, desc: 'Батуты отбивают, стрелки разгоняют. Как в игровом автомате!' },
   { name: 'Порталы',        theme: 'space',  zone: 2, desc: 'Влетел в один портал — вылетел из другого.' },
   { name: 'Буря',           theme: 'aurora', zone: 0, desc: 'Ветер сносит, а звёзды мигают по очереди. Лови ритм!' },
@@ -557,7 +570,7 @@ const NEW_HINT = {
   crumble: ['ХРУПКИЕ ЗВЁЗДЫ', 'Рассыпаются через секунду — не зевай!'], vortexG: ['ЗОЛОТОЙ ВИХРЬ', 'Залети в него — он подбросит тебя высоко вверх!'],
   moving: ['КАРУСЕЛЬ', 'Звёзды ездят туда-сюда'], spikes: ['ШИПЫ', 'Не касайся стен с шипами!'],
   spinner: ['МЕЛЬНИЦА', 'Пролетай, когда лопасти повернутся'], mine: ['МИНЫ', 'Мины кружат вокруг звёзд. Лети, когда путь свободен'],
-  laser: ['ЛАЗЕРЫ', 'Проскочи, пока луч погас'], vortex: ['ВОРОНКА', 'Фиолетовая воронка затянет и выплюнет вниз. Облетай!'],
+  laser: ['ЛАЗЕРЫ', 'Проскочи, пока луч погас'], vortex: ['ВОРОНКА', 'Засосёт — проиграешь! Облетай подальше или пролетай, пока она затихла'],
   bumper: ['БАТУТЫ', 'Отбивают шарик и разгоняют его'], portal: ['ПОРТАЛЫ', 'Влети в портал — вылетишь из такого же цвета'],
   wind: ['ВЕТЕР', 'Сносит шарик в сторону — бери поправку'], blink: ['МИГАЛКИ', 'Хватай звезду, пока она светится'],
   well: ['ЧЁРНЫЕ ДЫРЫ', 'Притягивают шарик. В центр — нельзя!'], meteors: ['ЗВЕЗДОПАД', 'Смотри на «!» сверху — оттуда упадёт метеорит'],
@@ -587,6 +600,7 @@ const DEATH_MSG = {
   fall:   ['УПАЛ!', 'МИМО!', 'ОЙ-ОЙ!'],
   spike:  ['КОЛЮЧКА!', 'НАКОЛОЛСЯ!', 'ОСТОРОЖНО, ШИПЫ!'],
   spinner: ['ЗАДЕЛО ЛОПАСТЬЮ!', 'МЕЛЬНИЦА НЕ ПРОСТИЛА', 'ВЖИК!'],
+  vortex: ['ЗАСОСАЛО!', 'УТЯНУЛО В ВОРОНКУ', 'ВОРОНКА ПОБЕДИЛА'],
   quit:   ['ЗАБЕГ ЗАВЕРШЁН'],
 };
 
@@ -735,9 +749,10 @@ const SAVE_KEY = 'orbita_save';
 const newBallSave = () => ({ rope: 0, engine: 0, magnet: 0 });
 function defaultSave() {
   return { v: 2, t: 0, dust: 0, coins: 0, balls: { spark: newBallSave() }, ball: 'spark', themes: ['space'], theme: 'space',
-    mode: 'classic', missions: [], mdone: 0, totals: newTotals(), lv: {}, refund: 0 };
+    mode: 'classic', missions: [], mdone: 0, totals: newTotals(), lv: {}, wopen: [], spent: 0, refund: 0 };
 }
 // lv: { levelNumber: stars bitmask } — 1 = finished, 2 = all crystals, 4 = in time
+// wopen: worlds (1..9) the player has opened; world 0 is always open. spent: stars paid for them
 const newTotals = () => ({ orbs: 0, runs: 0, coins: 0, lvwins: 0, lvstars: 0 });
 function migrateSave(s) {
   const n = defaultSave();
@@ -767,6 +782,11 @@ function migrateSave(s) {
   const lv = {};
   if (n.lv && typeof n.lv === 'object') for (const k in n.lv) { const i = k | 0, m = n.lv[k] & 7; if (i >= 1 && i <= LV_COUNT && m) lv[i] = m; }
   n.lv = lv;
+  // opened worlds; a world the player already played in before stars became a price stays open for free
+  const wo = new Set((Array.isArray(n.wopen) ? n.wopen : []).map(w => w | 0).filter(w => w >= 1 && w < WORLDS.length));
+  for (const k in lv) { const w = (k - 1) / 10 | 0; if (w > 0) wo.add(w); }
+  n.wopen = [...wo].sort((a, b) => a - b);
+  n.spent = Math.max(0, n.spent | 0);
   return n;
 }
 let save;
@@ -917,6 +937,9 @@ function submitScore(key, value, showRank) {
 const ballDef = () => BALLS.find(b => b.id === save.ball) || BALLS[0];
 const themeDef = () => THEMES.find(t => t.id === save.theme) || THEMES[0];
 const tier = () => Math.floor(save.mdone / 3);
+// every rank adds 3% to all sparks (up to +60%): missions matter for the whole game
+const rankMult = () => 1 + Math.min(0.6, tier() * 0.03);
+const RANK_COINS = 3;
 
 // =====================================================================
 //  GAME STATE
@@ -957,7 +980,7 @@ function calcK() {
   K = {
     grab: GRAB + 18 * u.rope, acc: 1 + 0.15 * u.engine, magR: ml ? 60 + 35 * ml : 0,
     chain: COMBO_TIME + (f.chain || 0), dust: 1 + (f.dust || 0), coinMag: f.coinMag ? 240 : 0,
-    rescue: f.rescue || 0, bouncy: !!f.bouncy, phase: f.phase || 0, eat: f.eat || 0, shield: !!f.shield, regen: f.regen || 0,
+    launch: f.launch || 1, rescue: f.rescue || 0, bouncy: !!f.bouncy, phase: f.phase || 0, eat: f.eat || 0, shield: !!f.shield, regen: f.regen || 0,
   };
 }
 function newRunStats() { return { h: 0, orbs: 0, combo: 0, near: 0, boost: 0, crumble: 0, zone: 1, coins: 0, gems: 0, lvwin: 0, played: 0, final: false }; }
@@ -1047,7 +1070,7 @@ function spawnNext() {
   }
 
   // coins: rare, and always in a spot that needs a bit of courage; more of them up in the meteor shower
-  const coinP = h >= METEOR_H ? 0.2 : 0.13;
+  const coinP = h >= METEOR_H ? 0.15 : 0.1;
   if (h > 30 && Math.random() < coinP) placeCoin(s, ringMine);
 
   genPrev = s; genX = s.bx; genY = y;
@@ -1080,7 +1103,7 @@ function mulberry32(a) {
 }
 const LV_SEED = {};          // level → another seed, for a level the checker found unfair
 // par time of every level in seconds (third star): bot time × 1.5 + 3 s, printed by tools/levels-check.js
-const LV_PAR = '8,12,19,17,16,15,17,19,31,28,11,15,28,19,32,23,25,28,35,44,21,17,19,26,31,31,31,26,42,39,16,20,27,37,41,31,36,42,35,49,17,27,21,24,22,34,33,36,34,43,26,19,22,26,31,28,33,35,39,42,17,20,22,24,42,23,32,41,36,45,22,24,24,25,23,26,29,29,43,42,23,25,19,29,30,37,32,34,43,44,27,31,31,33,38,32,33,46,36,51';
+const LV_PAR = '8,12,19,17,16,15,17,19,31,28,11,15,28,19,32,23,25,28,35,44,21,17,19,26,31,31,31,26,42,39,16,20,24,44,39,33,37,42,35,59,18,29,21,28,29,36,30,32,35,41,26,19,22,26,31,30,33,38,39,42,17,20,22,24,47,23,32,41,34,45,22,24,24,25,23,26,29,30,43,42,23,25,19,29,30,37,35,34,43,42,27,24,31,33,46,32,35,46,39,43';
 const SEG_KINDS = ['plain', 'mine', 'laser', 'bumper', 'portal', 'wind', 'blink', 'well', 'spikes', 'spinner', 'vortex', 'vortexG', 'arrow'];
 const worldOfLevel = n => (n - 1) / 10 | 0;
 // the first level where each thing appears (for the "new!" hint)
@@ -1190,7 +1213,7 @@ function buildLevel(n) {
       const p = nextPos(400, 440 + D * 20, 150), ly = (cur.y + p.y) / 2;   // 200+ from both stars: swinging never touches it
       const v = FIRST_OF.laser === n ? 'blink' : pick(['blink', 'blink', 'half', 'slide']);
       const l = { y: ly, cx: W / 2, len: W + 60, amp: 0, ms: 0, mph: 0, per: 0, duty: 1, ph: 0 };
-      if (v === 'blink') { l.per = rr(2.2, 2.7) - D * 0.35; l.duty = rr(0.42, 0.5) + D * 0.1; l.ph = rr(0, l.per); }
+      if (v === 'blink') { l.per = rr(2.4, 2.8) - D * 0.2; l.duty = rr(0.3, 0.36) + D * 0.08; l.ph = rr(0, l.per); }   // on ~0.8 s, off ~1.6 s
       else if (v === 'half') {      // a wall from one side; the current star is on the open side, the next one above the wall
         const left = cur.x > W / 2, tip = left ? cur.x - rr(60, 100) : cur.x + rr(60, 100);
         l.cx = left ? 0 : W; l.len = 2 * (left ? tip : W - tip);
@@ -1275,11 +1298,11 @@ function buildLevel(n) {
       spots.push({ x: sp.x, y: sp.y - sp.len - 40 });
       return s;
     },
-    vortex() {                                                         // purple whirlpool: pulls you in, spins you and spits you out downwards
+    vortex() {      // purple whirlpool that "breathes": pulls hard for a while, then calms down; its middle is deadly
       const s = addStar(nextPos(340, 400 + D * 30, 150), starType(false)), m = mid(cur, s);
-      const v = { x: m.x, y: m.y, R: 165 + D * 30, core: 24, pull: 900 + D * 500, swirl: side() * (500 + D * 300), good: false, es: 650 };
+      const v = { x: m.x, y: m.y, R: 160 + D * 30, core: 24, pull: 1050 + D * 450, swirl: side() * (420 + D * 250), good: false,
+        per: rr(2.6, 3.2), act: 0.5 + D * 0.15, ph: rr(0, 3) };
       if (!placeAway(v, m.x, m.y, 40, 140, 215, 80)) return s;
-      v.ex = v.x < m.x ? -0.6 : 0.6; v.ey = 0.8;
       L.vortexes.push(v);
       spots.push({ x: v.x + Math.sign(m.x - v.x || 1) * 85, y: v.y - 55 });
       return s;
@@ -1364,7 +1387,7 @@ function loadLevel(n) {
   L.wells.forEach(h => wells.push(Object.assign({ solid: true }, h)));
   L.spikes.forEach(s => spikes.push(Object.assign({ solid: true }, s)));
   L.spinners.forEach(s => spinners.push(Object.assign({ solid: true }, s)));
-  L.vortexes.forEach(v => vortexes.push(Object.assign({ kind: 'vortex' }, v)));
+  L.vortexes.forEach(v => vortexes.push(Object.assign({ kind: 'vortex', solid: !v.good, rot: 0, ring: 0 }, v)));
   L.arrows.forEach(a => arrows.push(Object.assign({ kind: 'arrow', hit: 0 }, a)));
   voidY = voidSpd ? P.y + VH * 0.42 + 160 : 1e9;
 }
@@ -1374,8 +1397,19 @@ const popc = m => (m & 1) + (m >> 1 & 1) + (m >> 2 & 1);
 const lvStars = n => popc(save.lv[n] | 0);
 function totalStars() { let s = 0; for (const k in save.lv) s += popc(save.lv[k]); return s; }
 function worldStars(w) { let s = 0; for (let i = 1; i <= 10; i++) s += lvStars(w * 10 + i); return s; }
-const worldNeed = w => w * 14;                     // stars needed to open world w (on top of beating the previous boss)
-const worldOpen = w => w === 0 || (!!(save.lv[w * 10] & 1) && totalStars() >= worldNeed(w));
+// Stars are the currency of the levels mode: beating a world's boss lets you OPEN the next world by paying stars.
+// The stars you earned stay on the levels (and in the leaderboard); only the wallet goes down.
+const worldCost = w => w ? 10 + 2 * w : 0;          // world 2: 12 ★ … world 10: 28 ★ (180 of the 270 stars of worlds 1–9)
+const worldOpen = w => w === 0 || save.wopen.includes(w);
+const bossBeaten = w => !!(save.lv[w * 10] & 1);   // the boss in front of world w (level w*10)
+const starWallet = () => Math.max(0, totalStars() - save.spent);
+const canBuyWorld = w => w > 0 && w < WORLDS.length && !worldOpen(w) && bossBeaten(w) && starWallet() >= worldCost(w);
+function buyWorld(w) {
+  if (!canBuyWorld(w)) { nope(); return false; }
+  save.wopen.push(w); save.spent += worldCost(w); persist();
+  fanfare(); toast('НОВЫЙ МИР ОТКРЫТ!', WORLDS[w].name + '  −' + worldCost(w) + ' ★');
+  return true;
+}
 const levelOpen = n => n >= 1 && n <= LV_COUNT && worldOpen(worldOfLevel(n)) && (n % 10 === 1 || !!(save.lv[n - 1] & 1));
 function nextLevel() {
   let last = 1;
@@ -1469,7 +1503,7 @@ function attach(s) {
 
 function release() {
   const s = P.att; P.att = null; lastStar = s; releaseT = time;
-  P.vx = -Math.sin(P.ang) * P.dir * P.spd; P.vy = Math.cos(P.ang) * P.dir * P.spd;
+  P.vx = -Math.sin(P.ang) * P.dir * P.spd * K.launch; P.vy = Math.cos(P.ang) * P.dir * P.spd * K.launch;
   if (s && s.type === 'boost' && !s.dead) {
     P.vx *= 1.45; P.vy *= 1.45; warpT = 0.7; R.boost++;
     burst(P.x, P.y, COL.boost, 26, 320, 0.6, 10);
@@ -1520,7 +1554,7 @@ function die(cause) {
   if (state !== 'play') return;
   state = 'dying'; dyingT = 1.2; deathCause = cause; P.dead = true; P.att = null; holding = false;
   burst(P.x, P.y, COL.white, 60, 520, 1.2, 12);
-  burst(P.x, P.y, cause === 'void' ? biome().voidc : cause === 'meteor' ? COL.meteor : cause === 'well' ? COL.well : cause === 'fall' ? biome().orb : COL.mine, 70, 380, 1.4, 14);
+  burst(P.x, P.y, cause === 'void' ? biome().voidc : cause === 'meteor' ? COL.meteor : cause === 'well' ? COL.well : cause === 'vortex' ? COL.vortex : cause === 'fall' ? biome().orb : COL.mine, 70, 380, 1.4, 14);
   shake = 22; flash = 1;
   tone(170, 1.3, 'sawtooth', 0.13, 0, 28); noise(1.1, 0.35, 1400, 60, 0.7);
   gameplay(false);
@@ -1669,8 +1703,8 @@ function finishDeath() {
   document.getElementById('rec2').textContent = `рекорд: ${B.score} очков · ${B.h} м · цепь ${B.combo}`;
 
   // economy: sparks at the end of the run, coins were credited on pickup
-  const dm = K.dust;
-  const fromOrbs = R.orbs, fromH = Math.floor(maxH / 20);
+  const dm = K.dust * rankMult();
+  const fromOrbs = R.orbs, fromH = Math.floor(maxH / 25);
   const earned = Math.round((fromOrbs + fromH) * dm);
   save.dust += earned;
   save.totals.orbs += R.orbs; save.totals.runs++; R.played = 1;
@@ -1678,7 +1712,7 @@ function finishDeath() {
   checkMissions();
   persist();
   let det = `искры ${fromOrbs} · высота ${fromH}`;
-  if (dm > 1.001) det += ` · бонус ×${+dm.toFixed(2)}`;
+  if (dm > 1.001) det += ` · бонус шарика и ранга ×${+dm.toFixed(2)}`;
   if (missionDust) det += ` · задания +${missionDust}`;
   const coinsGot = R.coins + rankCoins;
   document.getElementById('earn').innerHTML = `+${earned + missionDust} ✦` + (coinsGot ? ` &nbsp; +${coinsGot} <i class="coin"></i>` : '');
@@ -1699,14 +1733,13 @@ const starSvg = on => `<svg viewBox="0 0 24 24" aria-hidden="true"${on ? ' class
 function finishLevel(won) {
   state = 'dead'; deadAt = performance.now(); holding = false;
   const n = lvN, L = LV, old = save.lv[n] | 0, wBefore = worldStars(L.w);
-  const nextWasOpen = n < LV_COUNT && levelOpen(n + 1);
   const mask = won ? 1 | (R.gems >= 3 ? 2 : 0) | (lvT <= L.par ? 4 : 0) : 0;
   const nw = old | mask, newStars = popc(nw) - popc(old), firstWin = won && !(old & 1);
   if (nw) save.lv[n] = nw;
-  const fromOrbs = Math.round(R.orbs * K.dust), bonusDust = (firstWin ? 15 + Math.round(n * 1.5) : 0) + newStars * 10;
+  const fromOrbs = Math.round(R.orbs * K.dust * rankMult()), bonusDust = (firstWin ? 10 + n : 0) + newStars * 8;
   let coinsGot = 0;
-  if (firstWin && L.boss) coinsGot += 5;
-  if (wBefore < 30 && worldStars(L.w) === 30) coinsGot += 10;
+  if (firstWin && L.boss) coinsGot += 4;
+  if (wBefore < 30 && worldStars(L.w) === 30) coinsGot += 8;
   save.dust += fromOrbs + bonusDust; save.coins += coinsGot;
   save.totals.orbs += R.orbs; save.totals.runs++; save.totals.lvstars += newStars;
   if (won) save.totals.lvwins++;
@@ -1730,22 +1763,27 @@ function finishLevel(won) {
   }
   const coinsAll = coinsGot + rankCoins, dustAll = fromOrbs + bonusDust + missionDust;
   document.getElementById('lrE').innerHTML = (dustAll ? `+${dustAll} ✦` : '') + (coinsAll ? ` &nbsp; +${coinsAll} <i class="coin"></i>` : '');
-  const canNext = won && n < LV_COUNT && levelOpen(n + 1);
-  document.getElementById('bLvNext').classList.toggle('hidden', !canNext);
-  const retry = document.getElementById('bLvRetry');
-  retry.textContent = won ? 'ЕЩЁ РАЗ' : 'ЗАНОВО'; retry.classList.toggle('primary', !won);
-  let g = goalHTML();
-  if (won && !canNext && n < LV_COUNT) {
-    const w = worldOfLevel(n + 1);
-    g = `<div class="goal ready">Мир ${w + 1} откроется, когда соберёшь ${worldNeed(w)} звёзд (сейчас ${totalStars()}). Перепройди уровни на 3 звезды!</div>`;
-  }
-  document.getElementById('goal3').innerHTML = g;
+  resultButtons(won);
   refillMissions();
   refreshWallet();
   for (const id of ['hud', 'timer', 'lvprog']) document.getElementById(id).classList.add('hidden');
   document.getElementById('lvres').classList.remove('hidden');
-  if (won && !nextWasOpen && canNext && n % 10 === 0) setTimeout(() => toast('НОВЫЙ МИР ОТКРЫТ!', WORLDS[worldOfLevel(n + 1)].name), 900);
-  else if (coinsGot) setTimeout(() => toast(L.boss && firstWin ? 'БОСС ПОБЕЖДЁН!' : 'ВСЕ ЗВЁЗДЫ МИРА!', `+${coinsGot} монет`), 900);
+  if (coinsGot) setTimeout(() => toast(L.boss && firstWin ? 'БОСС ПОБЕЖДЁН!' : 'ВСЕ ЗВЁЗДЫ МИРА!', `+${coinsGot} монет`), 900);
+}
+// buttons under the result: next level, or "open the next world for N stars" after a boss
+function resultButtons(won) {
+  const n = lvN, nw = worldOfLevel(n + 1), atGate = won && n < LV_COUNT && n % 10 === 0 && !worldOpen(nw);
+  const canNext = won && n < LV_COUNT && levelOpen(n + 1);
+  document.getElementById('bLvNext').classList.toggle('hidden', !canNext);
+  const buy = document.getElementById('bLvOpen');
+  buy.classList.toggle('hidden', !atGate);
+  if (atGate) { buy.innerHTML = `ОТКРЫТЬ МИР ${nw + 1} · ${worldCost(nw)} ${starSvg()}`; buy.classList.toggle('poor', !canBuyWorld(nw)); }
+  const retry = document.getElementById('bLvRetry');
+  retry.textContent = won ? 'ЕЩЁ РАЗ' : 'ЗАНОВО'; retry.classList.toggle('primary', !won);
+  document.getElementById('goal3').innerHTML = atGate
+    ? `<div class="goal ${canBuyWorld(nw) ? 'ready' : ''}">Мир ${nw + 1} «${WORLDS[nw].name}» стоит ${worldCost(nw)} ★. У тебя ${starWallet()} ★`
+      + (canBuyWorld(nw) ? '' : ' — перепройди уровни: звёзды дают финиш, все кристаллы и быстрое время.') + '</div>'
+    : goalHTML();
 }
 // a tap on the level result screen: next level after a win (if it is open), otherwise the same level again
 function levelAfter() { startLevel(!document.getElementById('bLvNext').classList.contains('hidden') ? lvN + 1 : lvN); }
@@ -1767,11 +1805,17 @@ function updateWorld(dt) {
   }
   for (let i = 0; i < bumpers.length; i++) if (bumpers[i].hit > 0) bumpers[i].hit = Math.max(0, bumpers[i].hit - dt * 4);
   for (let i = 0; i < arrows.length; i++) if (arrows[i].hit > 0) arrows[i].hit = Math.max(0, arrows[i].hit - dt * 3);
+  for (let i = 0; i < vortexes.length; i++) {
+    const v = vortexes[i], on = vortexPow(v, time) > 0.5, dir = v.swirl > 0 ? 1 : -1;
+    v.rot += dt * dir * (on ? 5 : 1.2); v.ring = (v.ring + dt * (on ? 1.3 : 0.3)) % 1;
+  }
 }
 
 // ---------- free flight (shared by the game and the trajectory hint, so the hint is exact) ----------
 const ACC = { x: 0, y: 0 }, SPIKE_HIT = { solid: true };
-function flyAccel(x, y) {
+// a purple vortex pulls at full strength while "breathing in", and at 15% while calm
+const vortexPow = (v, t) => v.good ? 1 : ((t + v.ph) % v.per) < v.per * v.act ? 1 : 0.15;
+function flyAccel(x, y, t) {
   let ax = 0, ay = G;
   for (let i = 0; i < winds.length; i++) { const w = winds[i]; if (y < w.y0 && y > w.y1) ax += w.ax; }
   for (let i = 0; i < wells.length; i++) {
@@ -1780,7 +1824,7 @@ function flyAccel(x, y) {
   }
   for (let i = 0; i < vortexes.length; i++) {
     const v = vortexes[i], dx = v.x - x, dy = v.y - y, d = Math.hypot(dx, dy);
-    if (d < v.R && d > 1) { const f = (1 - d / v.R) / d; ax += (dx * v.pull - dy * v.swirl) * f; ay += (dy * v.pull + dx * v.swirl) * f; }
+    if (d < v.R && d > 1) { const f = (1 - d / v.R) / d * vortexPow(v, t); ax += (dx * v.pull - dy * v.swirl) * f; ay += (dy * v.pull + dx * v.swirl) * f; }
   }
   ACC.x = ax; ACC.y = ay;
 }
@@ -1825,7 +1869,7 @@ function flyMove(b, dt, t) {
     b.vx = v.ex * v.es; b.vy = v.ey * v.es; b.x = v.x + v.ex * (v.core + 8); b.y = v.y + v.ey * (v.core + 8); b.vcd = 0.5;
     return 'vout';
   }
-  flyAccel(b.x, b.y);
+  flyAccel(b.x, b.y, t);
   b.vx += ACC.x * dt; b.vy += ACC.y * dt;
   const sp = Math.hypot(b.vx, b.vy);
   if (sp > MAXFREE) { b.vx *= MAXFREE / sp; b.vy *= MAXFREE / sp; }
@@ -1841,8 +1885,8 @@ function flyMove(b, dt, t) {
   if (b.vcd > 0) b.vcd -= dt;
   else for (let i = 0; i < vortexes.length; i++) {
     const v = vortexes[i];
-    if (Math.hypot(b.x - v.x, b.y - v.y) > v.core) continue;
-    b.cap = v.good ? 0.45 : 0.75; b.cv = i; b.ca = Math.atan2(b.y - v.y, b.x - v.x); b.vx = 0; b.vy = 0;
+    if (!v.good || Math.hypot(b.x - v.x, b.y - v.y) > v.core) continue;      // only the golden one catches and throws
+    b.cap = 0.45; b.cv = i; b.ca = Math.atan2(b.y - v.y, b.x - v.x); b.vx = 0; b.vy = 0;
     return 'vin';
   }
   if (bumpers.length || portals.length || arrows.length) hit = flyContacts(b, t) || hit;
@@ -1866,11 +1910,10 @@ function contactFx(hit) {
     ring(P.x, P.y, v.good ? COL.vortexG : COL.vortex, 20, 240); trN = 0;
     tone(note(v.good ? 6 : 3), 0.7, 'sine', 0.1, 0, note(v.good ? 16 : 13)); noise(0.6, 0.08, 300, 2000);
     if (v.good) happy(1.2);
-  } else if (hit === 'vout') {
-    const v = vortexes[P.cv];
-    if (v.good) { pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); warpT = 0.7; shake = Math.max(shake, 6); happy(1.5); tone(200, 0.5, 'sawtooth', 0.05, 0, 900); }
-    else { pop(P.x, P.y + 30, 'ТЬФУ!', COL.vortex, 22, 1); tone(note(8), 0.4, 'triangle', 0.08, 0, note(1)); }
-    burst(P.x, P.y, v.good ? COL.vortexG : COL.vortex, 18, 300, 0.6, 8);
+  } else if (hit === 'vout') {               // thrown up by a golden vortex
+    pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); warpT = 0.7; shake = Math.max(shake, 6); happy(1.5);
+    tone(note(8), 0.5, 'triangle', 0.08, 0, note(20));
+    burst(P.x, P.y, COL.vortexG, 18, 300, 0.6, 8);
   } else if (hit.kind === 'arrow') {
     hit.hit = 1; warpT = Math.max(warpT, 0.35);
     burst(P.x, P.y, COL.arrow, 16, 280, 0.5, 8);
@@ -1949,6 +1992,15 @@ function step(dt) {
     if (P.att) release();                    // survived (shield / ghost): thrown out of the hole
     P.vx = dx / (d || 1) * 950; P.vy = dy / (d || 1) * 950; P.x = h.x + dx / (d || 1) * (h.core + 10); P.y = h.y + dy / (d || 1) * (h.core + 10);
   }
+  for (let i = 0; i < vortexes.length; i++) {
+    const v = vortexes[i];
+    if (v.good) continue;
+    const dx = P.x - v.x, dy = P.y - v.y, d = Math.hypot(dx, dy);
+    if (d > v.core + 4) continue;
+    if (!hazardHit(v)) { die('vortex'); return; }
+    if (P.att) release();
+    P.vx = dx / (d || 1) * 950; P.vy = dy / (d || 1) * 950; P.x = v.x + dx / (d || 1) * (v.core + 10); P.y = v.y + dy / (d || 1) * (v.core + 10);
+  }
 
   // meteors: endless mode above METEOR_H, and the meteor levels
   if (meteorsOn()) {
@@ -1968,7 +2020,7 @@ function step(dt) {
     if (w.t <= 0) {
       w.done = true;
       meteors.push({ x: w.x, y: camY - 120, vx: w.vx, vy: rand(430, 560) + Math.min(250, maxH * 0.05), r: 15, rot: 0, dead: false, near: false, nd: false });
-      tone(90, 0.5, 'sawtooth', 0.04, 0, 40);
+      noise(0.7, 0.03, 3200, 500, 1.6); tone(note(16), 0.45, 'sine', 0.022, 0, note(8));   // soft falling whoosh
     }
   }
   for (let i = 0; i < meteors.length; i++) {
@@ -2147,11 +2199,12 @@ function drawBall(g, x, y, r, b, t, vx, vy, mood, alpha, seed, glowK = 1) {
   const dX = sp > 40 ? -vx / sp : 0, dY = sp > 40 ? -vy / sp : 1;  // "behind" direction (down when still)
   g.globalCompositeOperation = 'lighter';
   glowOn(g, b.look === 'hole' ? b.c : c, x, y, r * (b.look === 'hole' ? 6 : 4.6) * glowK, 0.6 * alpha);
-  if (b.look === 'fire') {
-    for (let i = 3; i >= 1; i--) {
-      const d = r * 0.85 * i, fl = Math.sin(t * 25 + i * 2) * r * 0.25;
+  if (b.look === 'fire' || b.look === 'comet') {
+    const ice = b.look === 'comet', n = ice ? 4 : 3;
+    for (let i = n; i >= 1; i--) {
+      const d = r * 0.85 * i, fl = Math.sin(t * 25 + i * 2) * r * (ice ? 0.1 : 0.25);
       const fx = x + (sp > 40 ? dX : 0) * d + (sp > 40 ? -dY : 1) * fl, fy = y + (sp > 40 ? dY : -1) * d + (sp > 40 ? dX : 0) * fl;
-      glowOn(g, i === 1 ? [255, 220, 90] : [255, 110, 40], fx, fy, r * (1.9 - i * 0.35), 0.85 * alpha);
+      glowOn(g, ice ? (i === 1 ? [220, 250, 255] : [90, 160, 255]) : (i === 1 ? [255, 220, 90] : [255, 110, 40]), fx, fy, r * (1.9 - i * 0.3), 0.85 * alpha);
     }
   }
   g.globalCompositeOperation = 'source-over';
@@ -2222,6 +2275,33 @@ function drawBall(g, x, y, r, b, t, vx, vy, mood, alpha, seed, glowK = 1) {
     g.globalAlpha = alpha;
     g.fillStyle = '#ffe27a'; g.strokeStyle = '#fff'; g.lineWidth = Math.max(0.6, r * 0.06);
     g.beginPath(); g.moveTo(x - r * 0.24, y - r * 0.78); g.lineTo(x + r * 0.2, y - r * 0.9); g.lineTo(x + r * 0.08, y - r * 1.8); g.closePath(); g.fill(); g.stroke();
+  } else if (b.look === 'comet') {                         // icy sparkles around
+    g.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 3; k++) { const a = t * 2.2 + k * 2.1; glowOn(g, [200, 240, 255], x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r * 1.5, r * 0.45, alpha); }
+    g.globalCompositeOperation = 'source-over';
+  } else if (b.look === 'dragon') {                        // little wings that flap, two horns
+    g.globalAlpha = alpha;
+    const flap = Math.sin(t * 9) * 0.35;
+    g.fillStyle = 'rgba(80,200,120,0.85)'; g.strokeStyle = '#1f6a3a'; g.lineWidth = Math.max(0.6, r * 0.07);
+    for (let s = -1; s <= 1; s += 2) {
+      g.save(); g.translate(x + s * r * 0.85, y - r * 0.1); g.rotate(s * (0.5 + flap)); g.scale(s, 1);
+      g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(r * 0.9, -r * 0.9, r * 1.1, -r * 0.1); g.quadraticCurveTo(r * 0.6, -r * 0.2, r * 0.55, r * 0.25);
+      g.quadraticCurveTo(r * 0.3, 0, 0, r * 0.3); g.closePath(); g.fill(); g.stroke(); g.restore();
+    }
+    g.fillStyle = '#fff3c4';
+    for (let s = -1; s <= 1; s += 2) { g.beginPath(); g.moveTo(x + s * r * 0.25, y - r * 0.8); g.lineTo(x + s * r * 0.5, y - r * 1.45); g.lineTo(x + s * r * 0.58, y - r * 0.68); g.closePath(); g.fill(); }
+  } else if (b.look === 'cat') {                           // ears and whiskers
+    g.globalAlpha = alpha;
+    for (let s = -1; s <= 1; s += 2) {
+      g.fillStyle = rgba(c2, 1); g.beginPath(); g.moveTo(x + s * r * 0.2, y - r * 0.9); g.lineTo(x + s * r * 0.75, y - r * 1.45); g.lineTo(x + s * r * 0.9, y - r * 0.45); g.closePath(); g.fill();
+      g.fillStyle = '#ff9ad0'; g.beginPath(); g.moveTo(x + s * r * 0.38, y - r * 0.85); g.lineTo(x + s * r * 0.72, y - r * 1.2); g.lineTo(x + s * r * 0.8, y - r * 0.6); g.closePath(); g.fill();
+    }
+    g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = Math.max(0.5, r * 0.05); g.beginPath();
+    for (let s = -1; s <= 1; s += 2) for (let k = -1; k <= 1; k++) { g.moveTo(x + s * r * 0.45, y + r * 0.3 + k * r * 0.1); g.lineTo(x + s * r * 1.35, y + r * 0.22 + k * r * 0.22); }
+    g.stroke();
+    g.globalCompositeOperation = 'lighter';
+    glowOn(g, [255, 240, 140], x + Math.cos(t * 1.7) * r * 1.7, y + Math.sin(t * 1.7) * r * 1.2, r * 0.5, 0.8 * alpha);
+    g.globalCompositeOperation = 'source-over';
   }
   g.globalAlpha = alpha;
   drawFace(g, x, y, r, vx, vy, mood, t, seed, b.look === 'ghost');
@@ -2555,20 +2635,21 @@ function drawSpinner(q) {
 }
 function drawVortex(v) {
   if (v.y < camY - v.R - 40 || v.y > camY + VH + v.R + 40) return;
-  const c = v.good ? COL.vortexG : COL.vortex, dir = v.swirl > 0 ? 1 : -1;
+  const c = v.good ? COL.vortexG : COL.vortex, dir = v.swirl > 0 ? 1 : -1, on = vortexPow(v, time) > 0.5, k = on ? 1 : 0.45;
   ctx.globalCompositeOperation = 'lighter';
-  glow(c, v.x, v.y, v.R * 0.95, 0.38);
+  glow(c, v.x, v.y, v.R * 0.95, 0.38 * k);
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-  ctx.lineWidth = 2;                                    // rings sliding inwards: it pulls
+  if (!v.good) { ctx.strokeStyle = rgba(c, 0.25 * k); ctx.lineWidth = 1.5; ctx.setLineDash([4, 8]); circle(v.x, v.y, v.R); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.lineWidth = 2;                                    // rings sliding inwards: it pulls (fast while breathing in)
   for (let i = 0; i < 4; i++) {
-    const ph = (time * 0.6 + i / 4) % 1;
-    ctx.strokeStyle = rgba(c, 0.55 * ph); circle(v.x, v.y, v.core + (v.R - v.core) * (1 - ph)); ctx.stroke();
+    const ph = (v.ring + i / 4) % 1;
+    ctx.strokeStyle = rgba(c, 0.6 * ph * k); circle(v.x, v.y, v.core + (v.R - v.core) * (1 - ph)); ctx.stroke();
   }
-  ctx.strokeStyle = rgba(c, 0.85); ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.strokeStyle = rgba(c, 0.9 * k); ctx.lineWidth = 3; ctx.lineCap = 'round';
   for (let a = 0; a < 3; a++) {
     ctx.beginPath();
     for (let j = 0; j <= 10; j++) {
-      const r = v.core + (v.R * 0.62 - v.core) * j / 10, ang = a * TAU / 3 + dir * (time * 4 - j * 0.42);
+      const r = v.core + (v.R * 0.62 - v.core) * j / 10, ang = a * TAU / 3 + v.rot - dir * j * 0.42;
       if (j) ctx.lineTo(v.x + Math.cos(ang) * r, v.y + Math.sin(ang) * r); else ctx.moveTo(v.x + Math.cos(ang) * r, v.y + Math.sin(ang) * r);
     }
     ctx.stroke();
@@ -2577,9 +2658,8 @@ function drawVortex(v) {
   ctx.strokeStyle = rgba(c, 1); ctx.lineWidth = 2.5; ctx.stroke();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
   const b = Math.sin(time * 6) * 2;
-  if (v.good) { ctx.moveTo(v.x - 8, v.y + 5 + b); ctx.lineTo(v.x, v.y - 5 + b); ctx.lineTo(v.x + 8, v.y + 5 + b); }       // up: it throws you up
-  else { ctx.moveTo(v.x - 8, v.y - 5 - b); ctx.lineTo(v.x, v.y + 5 - b); ctx.lineTo(v.x + 8, v.y - 5 - b); }             // down: it spits you down
-  ctx.stroke();
+  if (v.good) { ctx.moveTo(v.x - 8, v.y + 5 + b); ctx.lineTo(v.x, v.y - 5 + b); ctx.lineTo(v.x + 8, v.y + 5 + b); ctx.stroke(); }   // up: it throws you up
+  else if (on) { ctx.strokeStyle = 'rgba(255,90,140,0.9)'; ctx.lineWidth = 3; circle(v.x, v.y, v.core + 3 + Math.sin(time * 20) * 2); ctx.stroke(); }  // hungry: danger
 }
 function drawArrow(a) {
   if (a.y < camY - 60 || a.y > camY + VH + 60) return;
@@ -2600,7 +2680,7 @@ function drawArrow(a) {
 // first levels: dotted path the ball would take if you let go right now
 const HB = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
 function drawAimHint() {
-  const s = P.att, k = s.type === 'boost' ? 1.45 : 1;
+  const s = P.att, k = (s.type === 'boost' ? 1.45 : 1) * K.launch;
   HB.x = P.x; HB.y = P.y; HB.vx = -Math.sin(P.ang) * P.dir * P.spd * k; HB.vy = Math.cos(P.ang) * P.dir * P.spd * k;
   HB.pcd = 0; HB.acd = 0; HB.vcd = 0; HB.cap = 0;
   ctx.fillStyle = '#fff';
@@ -2659,7 +2739,8 @@ function ballMood() {
   if (state === 'play' && voidOn() && gravityOn && voidY - P.y < 230) return 'scared';
   for (let i = 0; i < meteors.length; i++) if (Math.hypot(meteors[i].x - P.x, meteors[i].y - P.y) < 120) return 'scared';
   for (let i = 0; i < wells.length; i++) if (Math.hypot(wells[i].x - P.x, wells[i].y - P.y) < 130) return 'scared';
-  if (P.cap > 0) return vortexes[P.cv].good ? 'happy' : 'scared';
+  if (P.cap > 0) return 'happy';
+  for (let i = 0; i < vortexes.length; i++) { const v = vortexes[i]; if (!v.good && Math.hypot(v.x - P.x, v.y - P.y) < v.R * 0.75) return 'scared'; }
   return 'normal';
 }
 
@@ -2769,7 +2850,7 @@ function render() {
         const k = i / trN;
         const c = b.look === 'rainbow' ? hueCol(time - i * 0.08) : b.look === 'fire' ? (k > 0.6 ? [255, 200, 80] : [255, 90, 40])
           : (sp > 950 && b.look !== 'gold' && b.look !== 'hole') ? COL.gold : base;
-        ctx.strokeStyle = rgba(c, k * 0.55); ctx.lineWidth = 1 + k * 9;
+        ctx.strokeStyle = rgba(c, k * 0.55); ctx.lineWidth = 1.2 + k * 11;
         ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
       }
       px = x; py = y;
@@ -2780,7 +2861,7 @@ function render() {
   // the ball
   if (!P.dead) {
     const blink = P.inv > 0 && Math.sin(time * 40) > 0;
-    const br = Math.max(BALL_R, 9 / S);   // keep the face readable on narrow phone screens (visual only)
+    const br = Math.max(BALL_R, 9 / S) * 1.2;   // drawn 20% bigger so it's easy to see; the hitbox stays the same
     drawBall(ctx, P.x, P.y, br, b, time, P.vx, P.vy, ballMood(), blink ? 0.4 : 1, 0.37);
     if (P.shield) {
       ctx.lineWidth = 2.5;
@@ -2870,7 +2951,7 @@ function updateHud() {
 // =====================================================================
 function makeMission(type) {
   const t = tier(), d = MT[type];
-  return { type, n: d.n(t), reward: 30 + 15 * t, base: d.cum ? save.totals[d.cum] : 0, done: false };
+  return { type, n: d.n(t), reward: 25 + 10 * t, base: d.cum ? save.totals[d.cum] : 0, done: false };
 }
 function newMission() {
   const used = save.missions.map(m => m.type);
@@ -2894,7 +2975,7 @@ function checkMissions() {
     const oldTier = tier();
     save.mdone++; save.dust += m.reward; missionDust += m.reward;
     let t1 = 'ЗАДАНИЕ ВЫПОЛНЕНО  +' + m.reward + ' ✦';
-    if (tier() > oldTier) { save.coins += 5; rankCoins += 5; t1 = 'НОВЫЙ РАНГ ' + (tier() + 1) + '!  +' + m.reward + ' ✦  +5 МОНЕТ'; }
+    if (tier() > oldTier) { save.coins += RANK_COINS; rankCoins += RANK_COINS; t1 = 'НОВЫЙ РАНГ ' + (tier() + 1) + '!  +' + m.reward + ' ✦  +' + RANK_COINS + ' МОНЕТЫ'; }
     persist();
     toast(t1, MT[m.type].t(m.n));
     [0, 4, 7, 12].forEach((k, i) => tone(note(10 + k, 220), 0.7, 'triangle', 0.08, i * 0.07));
@@ -2943,6 +3024,7 @@ function refreshWallet() {
   document.querySelectorAll('.dustv').forEach(e => e.textContent = save.dust);
   document.querySelectorAll('.coinv').forEach(e => e.textContent = save.coins);
   document.querySelectorAll('.rankv').forEach(e => e.textContent = tier() + 1);
+  document.querySelectorAll('.rankb').forEach(e => e.textContent = tier() ? `+${Math.round((rankMult() - 1) * 100)}% ✦` : '');
   const bars = [0, 1, 2].map(i => `<i${save.mdone % 3 > i ? ' class="on"' : ''}></i>`).join('');
   document.querySelectorAll('.rankbar').forEach(e => e.innerHTML = bars);
   const ba = ballsAffordable(), ta = themesAffordable();
@@ -2953,7 +3035,7 @@ function renderModes() {
   let h = '';
   for (const m of MODES) {
     const sel = save.mode === m.id;
-    const sub = m.id === 'levels' ? `${starSvg()} ${totalStars()} / ${LV_COUNT * 3}` : best.classic.h ? `рекорд ${best.classic.h} м` : '';
+    const sub = m.id === 'levels' ? `${starSvg()} ${starWallet()}` : best.classic.h ? `рекорд ${best.classic.h} м` : '';
     h += `<button class="mode${sel ? ' on' : ''}" data-mode="${m.id}">
       <div class="mi">${m.icon}</div><div class="mn">${m.name}</div>
       <div class="md">${m.desc}</div><div class="mb stv">${sub}</div></button>`;
@@ -3096,8 +3178,8 @@ function closeMap() {
   document.getElementById('menu').classList.remove('hidden');
 }
 function renderMap() {
-  const W0 = WORLDS[mapW], open = worldOpen(mapW), cur = nextLevel(), tot = totalStars();
-  document.getElementById('lvTot').innerHTML = `${starSvg()} ${tot} / ${LV_COUNT * 3}`;
+  const W0 = WORLDS[mapW], open = worldOpen(mapW), cur = nextLevel(), wallet = starWallet();
+  document.getElementById('lvTot').innerHTML = `${starSvg()} ${wallet}`;
   document.getElementById('wNum').innerHTML = `МИР ${mapW + 1} &nbsp;<span class="stv">${starSvg()} ${worldStars(mapW)} / 30</span>`;
   document.getElementById('wName').textContent = W0.name;
   document.getElementById('wDesc').textContent = W0.desc;
@@ -3115,9 +3197,10 @@ function renderMap() {
   const lock = document.getElementById('wLock');
   lock.classList.toggle('hidden', open);
   if (!open) {
-    const needBoss = !(save.lv[mapW * 10] & 1), need = worldNeed(mapW);
-    lock.innerHTML = needBoss ? `Пройди уровень ${mapW * 10} (босса мира ${mapW}), чтобы открыть этот мир`
-      : `Нужно ${need} звёзд, а у тебя ${tot}. Перепройди уровни на 3 звезды!`;
+    const cost = worldCost(mapW), can = canBuyWorld(mapW);
+    lock.innerHTML = !bossBeaten(mapW) ? `Победи босса — уровень ${mapW * 10}, — потом этот мир можно будет открыть за ${cost} ★`
+      : `<button class="btn buy${can ? '' : ' poor'}" id="bOpenW">ОТКРЫТЬ ЗА ${cost} ${starSvg()}</button>`
+        + `<div class="wl2">${can ? `у тебя ${wallet} ★` : `у тебя ${wallet} ★ — собери ещё ${cost - wallet}: перепройди уровни на 3 звезды`}</div>`;
   }
 }
 function mapStep(d) {
@@ -3133,7 +3216,7 @@ const CHANCE_T = 6, CHANCE_MIN_H = 60;
 const chanceEl = document.getElementById('chance'), chBar = document.getElementById('chBar');
 let chanceBarW = -1;
 function chanceOK() {
-  return !chanceUsed && ['void', 'mine', 'meteor', 'laser', 'well', 'fall', 'spike', 'spinner'].includes(deathCause)
+  return !chanceUsed && ['void', 'mine', 'meteor', 'laser', 'well', 'fall', 'spike', 'spinner', 'vortex'].includes(deathCause)
     && (mode === 'levels' ? grabs >= 3 : maxH >= CHANCE_MIN_H);
 }
 function offerChance() {
@@ -3200,13 +3283,18 @@ on('bLvBack', closeMap);
 on('wPrev', () => mapStep(-1));
 on('wNext', () => mapStep(1));
 on('bLvNext', () => interstitial(() => startLevel(lvN + 1)));
+on('bLvOpen', () => { if (buyWorld(worldOfLevel(lvN + 1))) { resultButtons(true); refreshWallet(); } });
 on('bLvRetry', () => interstitial(() => startLevel(lvN)));
 on('bLvMap', () => interstitial(() => { const w = worldOfLevel(lvN); showMenu(); openMap(w); }));
+document.getElementById('wLock').addEventListener('click', e => {
+  if (!e.target.closest('#bOpenW')) return;
+  if (buyWorld(mapW)) { renderMap(); refreshWallet(); }
+});
 document.getElementById('lgrid').addEventListener('click', e => {
   const b = e.target.closest('.lvb'); if (!b) return;
   initAudio();
   const n = +b.dataset.lv;
-  if (!levelOpen(n)) { nope(); toast('ПОКА ЗАКРЫТО', worldOpen(worldOfLevel(n)) ? 'Сначала пройди предыдущий уровень' : document.getElementById('wLock').textContent); return; }
+  if (!levelOpen(n)) { nope(); toast('ПОКА ЗАКРЫТО', worldOpen(worldOfLevel(n)) ? 'Сначала пройди предыдущий уровень' : 'Сначала открой этот мир'); return; }
   startLevel(n);
 });
 on('bAgain', () => interstitial(startGame));
