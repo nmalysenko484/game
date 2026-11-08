@@ -401,6 +401,7 @@ const COL = {
   mine: [255, 45, 85], white: [255, 255, 255], gold: [255, 215, 90], meteor: [255, 120, 40],
   blink: [110, 255, 190], gem: [110, 235, 255], laser: [255, 50, 90], portalA: [255, 150, 50], portalB: [70, 170, 255],
   bumper: [255, 120, 220], well: [175, 95, 255], wind: [200, 235, 255],
+  spike: [255, 70, 100], spinner: [255, 90, 110], vortex: [200, 80, 255], vortexG: [255, 200, 60], arrow: [90, 255, 170],
 };
 
 const THEMES = [
@@ -470,20 +471,97 @@ const MODES = [
   { id: 'classic', name: 'Бесконечный', icon: '∞', desc: 'Лети вверх, пока пустота не догнала' },
   { id: 'levels',  name: 'Уровни',      icon: '★', desc: '100 уровней с ловушками' },
 ];
-// 10 worlds × 10 levels. Each world has its own background and brings one new obstacle;
-// level 10 of a world is the "boss": longer, and the void chases you.
+// 10 worlds × 10 levels. Every world has its own background and obstacles; level 10 of a world is the
+// "boss": longer, and the void chases you.
 const WORLDS = [
-  { name: 'Первые шаги', mech: 'basic',  theme: 'space',  zone: 0, desc: 'Зажми — цепляйся, отпусти — лети. Золотые звёзды подбрасывают.' },
-  { name: 'Минное поле', mech: 'mine',   theme: 'space',  zone: 1, desc: 'Мины кружат вокруг звёзд. Лети, когда путь свободен.' },
-  { name: 'Лазеры',      mech: 'laser',  theme: 'synth',  zone: 0, desc: 'Лазеры мигают. Проскочи, пока он погас.' },
-  { name: 'Батуты',      mech: 'bumper', theme: 'candy',  zone: 0, desc: 'Батуты отбрасывают шарик. Целься мимо или с отскоком!' },
-  { name: 'Порталы',     mech: 'portal', theme: 'ocean',  zone: 0, desc: 'Влетел в один портал — вылетел из другого.' },
-  { name: 'Ветер',       mech: 'wind',   theme: 'aurora', zone: 0, desc: 'Ветер сносит шарик в сторону. Бери поправку!' },
-  { name: 'Мигалки',     mech: 'blink',  theme: 'candy',  zone: 1, desc: 'Зелёные звёзды то гаснут, то загораются.' },
-  { name: 'Чёрные дыры', mech: 'well',   theme: 'space',  zone: 4, desc: 'Дыры притягивают шарик. Не подлетай к центру!' },
-  { name: 'Звездопад',   mech: 'meteor', theme: 'space',  zone: 3, desc: 'С неба падают метеориты. Смотри на «!» сверху.' },
-  { name: 'Финал',       mech: 'mix',    theme: 'synth',  zone: 2, desc: 'Всё сразу. Только для настоящих чемпионов.' },
+  { name: 'Первые шаги',    theme: 'space',  zone: 0, desc: 'Зажми — цепляйся, отпусти — лети. Стрелки и золотые вихри помогают!' },
+  { name: 'Шипастые скалы', theme: 'aurora', zone: 1, desc: 'Стены в шипах и вращающиеся мельницы. Не задень!' },
+  { name: 'Минное поле',    theme: 'space',  zone: 1, desc: 'Мины кружат вокруг звёзд. Лети, когда путь свободен.' },
+  { name: 'Лазеры',         theme: 'synth',  zone: 0, desc: 'Лазеры мигают и ездят. Проскочи, пока путь открыт.' },
+  { name: 'Воронки',        theme: 'ocean',  zone: 0, desc: 'Фиолетовые воронки затягивают и выплёвывают вниз. Золотые — подкидывают!' },
+  { name: 'Пинбол',         theme: 'candy',  zone: 0, desc: 'Батуты отбивают, стрелки разгоняют. Как в игровом автомате!' },
+  { name: 'Порталы',        theme: 'space',  zone: 2, desc: 'Влетел в один портал — вылетел из другого.' },
+  { name: 'Буря',           theme: 'aurora', zone: 0, desc: 'Ветер сносит, а звёзды мигают по очереди. Лови ритм!' },
+  { name: 'Чёрные дыры',    theme: 'space',  zone: 4, desc: 'Дыры притягивают шарик. В центр — нельзя!' },
+  { name: 'Финал',          theme: 'synth',  zone: 2, desc: 'Всё сразу, да ещё и звездопад. Только для чемпионов!' },
 ];
+// Every level has its own recipe, so neighbours never feel the same:
+//   shape | personality | obstacles | name
+//   shape:        col (tower) · zig (zigzag) · wave · stairs · rand
+//   personality:  - · tutor · gold (many golden stars) · crumble · moving · tight (short quick hops) · meteors · boss  (join with +)
+//   obstacles:    kind=weight,…  plain mine laser bumper portal wind blink well spikes spinner vortex vortexG arrow · or "all"
+const LV_PLAN = [
+  'col|tutor|plain|Первый полёт',               'zig|gold|plain|Золотые звёзды',
+  'wave|-|plain=1,arrow=2|Стрелки-ускорители',  'stairs|crumble|plain|Хрупкие звёзды',
+  'zig|-|plain=1,vortexG=1|Вихрь-подкидыш',     'wave|moving|plain|Карусель',
+  'col|tight|plain|Быстрые прыжки',   'zig|gold|plain=1,arrow=1,vortexG=1|Звёздная горка',
+  'rand|crumble|plain=2,arrow=1,vortexG=1|Хрупкий мост', 'stairs|boss|plain=2,arrow=1,vortexG=1|Побег от пустоты',
+
+  'col|-|spikes=1,plain=2|Острые стены',                  'zig|gold|spikes=2,plain=1|Между шипами',
+  'wave|-|spinner=2,plain=1|Мельница',          'stairs|crumble|spikes=2,plain=1|Хрупкие скалы',
+  'zig|-|spinner=2,arrow=1|Лопасти',            'col|moving|spikes=2,spinner=1|Шипастая шахта',
+  'wave|gold|spinner=1,vortexG=1,plain=1|Ветряки', 'zig|tight|spikes=1,spinner=1,plain=1|Узкий проход',
+  'rand|crumble|spikes=1,spinner=1,arrow=1|Колючий путь', 'stairs|boss|spikes=2,spinner=2,arrow=1|Колючий побег',
+
+  'zig|-|mine=1,plain=2|Мины-сторожа',                    'col|gold|mine=2,plain=1|Золото и мины',
+  'wave|-|mine=2,arrow=1|Минная трасса',        'stairs|moving|mine=2,plain=1|Мины на карусели',
+  'zig|crumble|mine=2,spikes=1|Хрупкое поле',   'wave|-|mine=2,spinner=1|Мины и мельницы',
+  'col|tight|mine=2,vortexG=1|Минный колодец',  'rand|gold|mine=2,spikes=1,arrow=1|Сапёр',
+  'zig|moving|mine=3,spinner=1|Минный лабиринт', 'stairs|boss|mine=3,spikes=1,arrow=1|Минный побег',
+
+  'col|-|laser=1,plain=2|Красные лучи',                   'zig|gold|laser=2,plain=1|Лазерное шоу',
+  'wave|-|laser=2,mine=1|Лучи и мины',          'stairs|crumble|laser=2,arrow=1|Хрупкий луч',
+  'zig|-|laser=2,spinner=1|Лазерная мельница',  'col|moving|laser=2,spikes=1|Лазерная шахта',
+  'wave|gold|laser=2,vortexG=1|Сквозь лучи',    'rand|tight|laser=2,mine=1,arrow=1|Лазерный лабиринт',
+  'zig|crumble|laser=3,spikes=1|Сеть лучей',    'stairs|boss|laser=3,mine=1,arrow=1|Лазерный побег',
+
+  'wave|-|vortex=1,plain=2|Водоворот',                    'zig|gold|vortex=2,vortexG=1|Добрые и злые вихри',
+  'col|-|vortex=2,arrow=1|Течение',             'stairs|crumble|vortex=2,mine=1|Хрупкий омут',
+  'zig|moving|vortex=2,spikes=1|Колючий водоворот', 'wave|-|vortex=2,laser=1|Лучи над омутом',
+  'col|gold|vortex=2,spinner=1|Мельница в омуте', 'rand|tight|vortex=2,vortexG=1,arrow=1|Круговорот',
+  'zig|crumble|vortex=3,mine=1|Бездна',         'stairs|boss|vortex=3,laser=1,arrow=1|Побег из омута',
+
+  'zig|-|bumper=2,arrow=1|Пинбол',              'col|gold|bumper=2,plain=1|Мармеладки',
+  'wave|-|arrow=2,bumper=1|Стрелочный бум',     'stairs|crumble|bumper=2,spikes=1|Колючий пинбол',
+  'zig|moving|bumper=2,mine=1|Прыг-скок',       'wave|-|bumper=2,vortex=1|Батут и вихрь',
+  'col|tight|bumper=2,arrow=2|Флиппер',         'rand|gold|bumper=2,laser=1|Лазерный пинбол',
+  'zig|crumble|bumper=2,spinner=1,arrow=1|Сумасшедший автомат', 'stairs|boss|bumper=2,arrow=2,spikes=1|Финальный шар',
+
+  'col|-|portal=1,plain=2|Дверь сквозь стену',            'zig|gold|portal=1,plain=2|Золотой портал',
+  'wave|-|portal=1,arrow=1,plain=1|Портал и стрелки', 'stairs|crumble|portal=1,mine=2|Хрупкие порталы',
+  'zig|-|portal=1,laser=2|Лучи и порталы',      'col|moving|portal=1,vortex=1,plain=1|Портал в омут',
+  'wave|gold|portal=1,bumper=2|Портальный пинбол', 'rand|tight|portal=1,spikes=1,spinner=1|Колючие двери',
+  'zig|crumble|portal=2,laser=1|Лабиринт дверей', 'stairs|boss|portal=2,mine=1,arrow=1|Портальный побег',
+
+  'zig|-|wind=1,plain=1|Ветерок',                         'col|-|blink=2,plain=1|Мигалки',
+  'wave|gold|wind=2,arrow=1|Попутный ветер',    'stairs|-|blink=2,wind=1|Мигающая буря',
+  'zig|crumble|wind=2,spikes=1|Колючий ветер',  'col|moving|blink=2,mine=1|Мины в темноте',
+  'wave|-|wind=2,vortex=1|Смерч',               'rand|gold|blink=2,laser=1|Лазерная гроза',
+  'zig|tight|wind=2,blink=1,spinner=1|Ураган',  'stairs|boss|wind=2,blink=1,arrow=1|Побег от бури',
+
+  'wave|-|well=1,plain=1|Притяжение',                     'zig|gold|well=2,plain=1|Золотая орбита',
+  'col|-|well=2,arrow=1|Гравитационный разгон', 'stairs|crumble|well=2,vortexG=1|Хрупкая гравитация',
+  'zig|moving|well=2,mine=1|Мины у дыры',       'wave|-|well=2,spinner=1|Дыры и мельницы',
+  'col|tight|well=2,vortex=1|Двойная тяга',     'rand|gold|well=2,laser=1|Горизонт событий',
+  'zig|crumble|well=2,bumper=1,arrow=1|Гравитационный пинбол', 'stairs|boss|well=2,vortex=1,spikes=1|Побег от дыры',
+
+  'zig|meteors|plain=2,mine=1|Звездопад',       'col|-|spikes=1,laser=1,vortex=1|Ассорти',
+  'wave|meteors|bumper=1,arrow=1,spinner=1|Метеоритный пинбол', 'stairs|crumble|portal=1,wind=1,blink=1|Буря в портале',
+  'zig|meteors|well=1,mine=1,laser=1|Космический хаос', 'wave|gold|vortex=1,vortexG=1,spikes=1,spinner=1|Безумная карусель',
+  'col|meteors|laser=1,bumper=1,wind=1|Последний рубеж', 'rand|tight|mine=1,spinner=1,well=1,arrow=1|Испытание',
+  'zig|meteors|laser=1,vortex=1,blink=1,spikes=1|Предфинал', 'stairs|boss+meteors|all|Великий побег',
+];
+// a short hint the first time a level brings something new
+const NEW_HINT = {
+  gold: ['ЗОЛОТЫЕ ЗВЁЗДЫ', 'Подбрасывают сильнее обычных!'], arrow: ['СТРЕЛКИ', 'Пролети через стрелку — она разгонит тебя к звезде!'],
+  crumble: ['ХРУПКИЕ ЗВЁЗДЫ', 'Рассыпаются через секунду — не зевай!'], vortexG: ['ЗОЛОТОЙ ВИХРЬ', 'Залети в него — он подбросит тебя высоко вверх!'],
+  moving: ['КАРУСЕЛЬ', 'Звёзды ездят туда-сюда'], spikes: ['ШИПЫ', 'Не касайся стен с шипами!'],
+  spinner: ['МЕЛЬНИЦА', 'Пролетай, когда лопасти повернутся'], mine: ['МИНЫ', 'Мины кружат вокруг звёзд. Лети, когда путь свободен'],
+  laser: ['ЛАЗЕРЫ', 'Проскочи, пока луч погас'], vortex: ['ВОРОНКА', 'Фиолетовая воронка затянет и выплюнет вниз. Облетай!'],
+  bumper: ['БАТУТЫ', 'Отбивают шарик и разгоняют его'], portal: ['ПОРТАЛЫ', 'Влети в портал — вылетишь из такого же цвета'],
+  wind: ['ВЕТЕР', 'Сносит шарик в сторону — бери поправку'], blink: ['МИГАЛКИ', 'Хватай звезду, пока она светится'],
+  well: ['ЧЁРНЫЕ ДЫРЫ', 'Притягивают шарик. В центр — нельзя!'], meteors: ['ЗВЕЗДОПАД', 'Смотри на «!» сверху — оттуда упадёт метеорит'],
+};
 const LV_COUNT = WORLDS.length * 10;
 
 const MT = {
@@ -507,6 +585,8 @@ const DEATH_MSG = {
   laser:  ['ЛАЗЕР!', 'БЗЗЗТ!', 'ПОДЖАРИЛСЯ'],
   well:   ['ЗАТЯНУЛО!', 'ЧЁРНАЯ ДЫРА НЕ ОТПУСТИЛА'],
   fall:   ['УПАЛ!', 'МИМО!', 'ОЙ-ОЙ!'],
+  spike:  ['КОЛЮЧКА!', 'НАКОЛОЛСЯ!', 'ОСТОРОЖНО, ШИПЫ!'],
+  spinner: ['ЗАДЕЛО ЛОПАСТЬЮ!', 'МЕЛЬНИЦА НЕ ПРОСТИЛА', 'ВЖИК!'],
   quit:   ['ЗАБЕГ ЗАВЕРШЁН'],
 };
 
@@ -583,7 +663,7 @@ const hueCol = t => rainbowCols[((Math.floor(t * 6) % 24) + 24) % 24];
 // =====================================================================
 //  AUDIO (voice-limited so bursts of sounds never stall the frame)
 // =====================================================================
-let AC = null, master = null, send = null, noiseBuf = null, droneGain = null, voices = 0;
+let AC = null, master = null, send = null, noiseBuf = null, voices = 0;
 let muted = false;
 try { muted = localStorage.getItem('orbita_mute') === '1'; } catch (e) {}
 // sound is suspended while any reason is active: 'pause', 'hidden' (tab in background), 'ad', 'sdk'
@@ -599,24 +679,14 @@ function initAudio() {
     AC = new (window.AudioContext || window.webkitAudioContext)();
     master = AC.createGain(); master.gain.value = muted ? 0 : 0.55; master.connect(AC.destination);
     const d = AC.createDelay(1); d.delayTime.value = 0.29;
-    const fb = AC.createGain(); fb.gain.value = 0.4;
+    const fb = AC.createGain(); fb.gain.value = 0.3;
     const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
     const wet = AC.createGain(); wet.gain.value = 0.4;
     send = AC.createGain();
     send.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(wet); wet.connect(master);
     noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
     const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
-    droneGain = AC.createGain(); droneGain.gain.value = 0;
-    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 400;
-    droneGain.connect(dl); dl.connect(master);
-    [55, 82.41, 110.3].forEach((f, i) => {
-      const o = AC.createOscillator(); o.type = i === 2 ? 'triangle' : 'sine'; o.frequency.value = f;
-      const g = AC.createGain(); g.gain.value = i === 2 ? 0.15 : 0.5;
-      const lfo = AC.createOscillator(); lfo.frequency.value = 0.07 + i * 0.05;
-      const lg = AC.createGain(); lg.gain.value = 0.3; lfo.connect(lg); lg.connect(g.gain); lfo.start();
-      o.connect(g); g.connect(droneGain); o.start();
-    });
-    droneGain.gain.linearRampToValueAtTime(0.05, AC.currentTime + 3);
+    // (there used to be a constant low background drone here — removed: players heard it as a hum)
     if (hush.size) AC.suspend();
   } catch (e) { AC = null; }
 }
@@ -855,6 +925,7 @@ let state = 'menu', paused = false, holding = false, mode = save.mode;
 let P = null;
 const stars = [], mines = [], orbs = [], parts = [], pops = [], meteors = [], warns = [];
 const lasers = [], portals = [], winds = [], bumpers = [], wells = [];      // obstacles of the levels mode
+const spikes = [], spinners = [], vortexes = [], arrows = [];
 let camY = 0, voidY = 0, gravityOn = false, maxH = 0, minPY = 0, bonus = 0;
 let combo = 0, comboT = 0, bestCombo = 0, lastStar = null, biomeIdx = 0;
 let shake = 0, flash = 0, warpT = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
@@ -899,8 +970,8 @@ function newStar(x, y, type) {
 function reset() {
   mode = save.mode; calcK();
   P = { x: W / 2, y: 0, floatY: 0, vx: 0, vy: 0, att: null, ang: 0, L: 0, dir: 1, spd: 0,
-    shield: K.shield, inv: 0, dead: false, phaseCD: 0, eatCD: 0, pcd: 0 };
-  for (const a of [stars, mines, orbs, parts, pops, meteors, warns, lasers, portals, winds, bumpers, wells]) a.length = 0;
+    shield: K.shield, inv: 0, dead: false, phaseCD: 0, eatCD: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
+  for (const a of [stars, mines, orbs, parts, pops, meteors, warns, lasers, portals, winds, bumpers, wells, spikes, spinners, vortexes, arrows]) a.length = 0;
   trN = 0; time = 0; releaseT = -9; lastOrbT = -9; lastWallT = -9;     // level motion is timed from the start of the run
   if (mode === 'levels') loadLevel(lvN);
   else {
@@ -1009,21 +1080,35 @@ function mulberry32(a) {
 }
 const LV_SEED = {};          // level → another seed, for a level the checker found unfair
 // par time of every level in seconds (third star): bot time × 1.5 + 3 s, printed by tools/levels-check.js
-const LV_PAR = '10,10,16,11,14,14,18,16,18,26,15,11,12,12,21,17,17,22,21,41,21,24,15,25,29,18,32,32,36,53,15,21,16,22,22,34,28,35,30,46,19,21,20,26,25,22,26,34,29,36,16,16,23,22,26,21,37,27,26,40,21,21,24,29,25,38,31,26,27,47,15,23,18,22,27,28,24,29,29,44,21,22,20,29,30,29,30,35,33,47,18,25,23,28,31,25,32,34,32,50';
-const SEG_OF = { basic: 'plain', mine: 'mine', laser: 'laser', bumper: 'bumper', portal: 'portal', wind: 'wind', blink: 'blink', well: 'well' };
+const LV_PAR = '8,12,19,17,16,15,17,19,31,28,11,15,28,19,32,23,25,28,35,44,21,17,19,26,31,31,31,26,42,39,16,20,27,37,41,31,36,42,35,49,17,27,21,24,22,34,33,36,34,43,26,19,22,26,31,28,33,35,39,42,17,20,22,24,42,23,32,41,36,45,22,24,24,25,23,26,29,29,43,42,23,25,19,29,30,37,32,34,43,44,27,31,31,33,38,32,33,46,36,51';
+const SEG_KINDS = ['plain', 'mine', 'laser', 'bumper', 'portal', 'wind', 'blink', 'well', 'spikes', 'spinner', 'vortex', 'vortexG', 'arrow'];
 const worldOfLevel = n => (n - 1) / 10 | 0;
+// the first level where each thing appears (for the "new!" hint)
+const FIRST_OF = {};
+LV_PLAN.forEach((r, i) => {
+  const [, gim, segs] = r.split('|');
+  for (const g of gim.split('+')) if (!(g in FIRST_OF)) FIRST_OF[g] = i + 1;
+  for (const s of segs === 'all' ? SEG_KINDS : segs.split(',').map(x => x.split('=')[0])) if (!(s in FIRST_OF)) FIRST_OF[s] = i + 1;
+});
 
 function buildLevel(n) {
-  const w = worldOfLevel(n), k = (n - 1) % 10, boss = k === 9, mech = WORLDS[w].mech;
+  const w = worldOfLevel(n), k = (n - 1) % 10;
+  const [shape, gim, segStr, name] = LV_PLAN[n - 1].split('|');
+  const GM = new Set(gim.split('+')), boss = GM.has('boss'), tutor = GM.has('tutor');
   const rnd = mulberry32(n * 7919 + (LV_SEED[n] | 0) * 100003 + 13);
   const rr = (a, b) => a + rnd() * (b - a), side = () => (rnd() < 0.5 ? -1 : 1), pick = a => a[rnd() * a.length | 0];
   const D = clamp(w / 9 * 0.6 + k / 9 * 0.4, 0, 1);                 // difficulty 0..1
-  const L = { n, w, k, boss, stars: [], mines: [], orbs: [], gems: [], lasers: [], portals: [], winds: [], bumpers: [], wells: [],
-    meteors: mech === 'meteor' || (mech === 'mix' && k >= 4), voidSpd: boss ? 42 + w * 4 : 0, finishY: 0, par: 0 };
+  const L = { n, w, k, boss, name, stars: [], mines: [], orbs: [], gems: [], lasers: [], portals: [], winds: [], bumpers: [], wells: [],
+    spikes: [], spinners: [], vortexes: [], arrows: [], meteors: GM.has('meteors'), voidSpd: boss ? (w ? 30 + w * 5 : 24) : 0, finishY: 0, par: 0 };
+  const pool = [];
+  for (const part of segStr === 'all' ? SEG_KINDS : segStr.split(',')) { const [kind, wt] = part.split('='); for (let i = 0; i < (+wt || 1); i++) pool.push(kind); }
   const spots = [];                                                    // candidate crystal places, bottom to top
-  const count = Math.round(6 + k * 0.8 + w * 0.6 + (boss ? 4 : 0));   // stars in the level
-  const older = WORLDS.slice(1, Math.min(w, 8)).map(x => SEG_OF[x.mech]);
-  let portalsLeft = mech === 'portal' ? 3 : 1;
+  const count = tutor ? 6 : Math.round(7 + k * 0.7 + w * 0.5 + (boss ? (w ? 4 : 2) : 0) + (GM.has('tight') ? 3 : 0));
+  const pB = GM.has('gold') ? 0.45 : tutor ? 0.1 : 0.14;
+  const pC = GM.has('crumble') ? 0.35 : n >= 4 && !tutor ? 0.04 + D * 0.12 : 0;
+  const pM = GM.has('moving') ? 0.35 : n >= 6 ? 0.04 + D * 0.12 : 0;
+  const tight = GM.has('tight') || tutor;
+  let portalsLeft = 3;
   const blinkPer = rr(2.8, 3.2) - D * 0.3;                             // blinking stars share one rhythm: on/off in turns
   let blinkN = 0;
   let cur = { x: W / 2, y: -150 };
@@ -1032,14 +1117,28 @@ function buildLevel(n) {
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const farFromStars = (x, y, r) => L.stars.every(s => Math.hypot(s.x - x, s.y - y) >= r + (s.amp || 0));
   function starType(allowMove) {
-    const r = rnd(), pB = 0.14, pC = n >= 4 ? 0.05 + D * 0.15 : 0, pM = allowMove && n >= 6 ? 0.05 + D * 0.15 : 0;
-    return r < pB ? 'boost' : r < pB + pC ? 'crumble' : r < pB + pC + pM ? 'moving' : 'normal';
+    const r = rnd();
+    return r < pB ? 'boost' : r < pB + pC ? 'crumble' : allowMove && r < pB + pC + pM ? 'moving' : 'normal';
   }
-  function nextPos(g0, g1, d0, d1) {
-    const y = cur.y - rr(g0, g1), dx = side() * rr(d0, d1);
-    let x = cur.x + dx;
-    if (x < 140 || x > W - 140) x = cur.x - dx;
-    return { x: clamp(x, 140, W - 140), y };
+  // the shape of the route: where the next star goes sideways
+  let zig = side(), stairDir = side(), stairN = 0, waveI = rr(0, TAU);
+  function shapeX(maxDx) {
+    let x;
+    if (shape === 'col') x = lerp(cur.x, W / 2, 0.5) + rr(-70, 70);
+    else if (shape === 'zig') { zig = -zig; x = W / 2 + zig * rr(110, 190); }
+    else if (shape === 'wave') { waveI += 0.95; x = W / 2 + Math.sin(waveI) * 200 + rr(-25, 25); }
+    else if (shape === 'stairs') {
+      if (++stairN > 3 || cur.x + stairDir * 150 > W - 140 || cur.x + stairDir * 150 < 140) { stairDir = -stairDir; stairN = 1; }
+      x = cur.x + stairDir * rr(110, 150);
+    } else x = cur.x + side() * rr(60, 200);
+    x = clamp(x, cur.x - maxDx, cur.x + maxDx);
+    if (x < 140) x = 280 - x; else if (x > W - 140) x = 2 * (W - 140) - x;   // bounce off the edge instead of sticking to the wall
+    return clamp(x, 140, W - 140);
+  }
+  // a star with a mine circling it keeps its neighbours far away, so the mine never crosses their circles
+  function nextPos(g0, g1, maxDx) {
+    const g = rr(g0, g1);
+    return { x: shapeX(maxDx), y: cur.y - (cur.ringed ? Math.max(g, rr(390, 430)) : g) };
   }
   function addStar(p, type) {
     const s = { x: p.x, y: p.y, type, ph: rr(0, TAU) };
@@ -1049,23 +1148,32 @@ function buildLevel(n) {
     return s;
   }
   function trail(a, b) {
-    if (rnd() > 0.5) return;
+    if (!tutor && rnd() > 0.5) return;
     const bend = rr(-70, 70);
     for (let j = 1; j <= 4; j++) { const q = j / 5; L.orbs.push({ x: lerp(a.x, b.x, q) + Math.sin(q * Math.PI) * bend, y: lerp(a.y, b.y, q) }); }
+  }
+  // place a round obstacle near (x0, y0) so that swinging around any star can never touch it
+  function placeAway(o, x0, y0, dx0, dx1, clear, margin) {
+    for (let tries = 0; tries < 20; tries++) {
+      o.x = clamp(x0 + side() * rr(dx0, dx1), margin, W - margin); o.y = y0 + rr(-20, 20);
+      if (farFromStars(o.x, o.y, clear)) return true;
+    }
+    return false;
   }
 
   // every gap between two stars is one "segment" with its own obstacle
   const SEG = {
     plain() {
-      const s = addStar(nextPos(150 + D * 30, 205 + D * 70, 60, 140 + D * 80), starType(true)), m = mid(cur, s);
+      const s = addStar(tight ? nextPos(145, 180, 150) : nextPos(150 + D * 30, 205 + D * 70, 230), starType(true)), m = mid(cur, s);
       spots.push({ x: m.x + side() * rr(120, 170), y: m.y }, { x: s.x + rr(-40, 40), y: s.y - rr(165, 205) });
       trail(cur, s);
       return s;
     },
     mine() {                                                           // a mine circling the next star, or one drifting across the gap
-      const both = D > 0.45 && rnd() < 0.35, ring = rnd() < 0.55, far = !ring || both;
-      const s = addStar(far ? nextPos(380, 420 + D * 30, 60, 150) : nextPos(170 + D * 30, 220 + D * 60, 60, 150 + D * 60), rnd() < 0.2 ? 'boost' : 'normal'), m = mid(cur, s);
+      const both = D > 0.45 && rnd() < 0.35, ring = rnd() < 0.55;
+      const s = addStar(nextPos(390, 430, 150), rnd() < 0.2 ? 'boost' : 'normal'), m = mid(cur, s);
       if (ring || both) {
+        s.ringed = true;
         const mm = { kind: 'orbit', si: L.stars.length - 1, R: rr(172, 200), a: rr(0, TAU), w: side() * rr(0.7, 1.15) * (1 + D * 0.5) };
         L.mines.push(mm);
         spots.push({ ring: true, si: mm.si, a: mm.a + Math.PI, R: mm.R, spin: mm.w });
@@ -1079,8 +1187,8 @@ function buildLevel(n) {
       return s;
     },
     laser() {
-      const p = nextPos(400, 440 + D * 20, 40, 150), ly = (cur.y + p.y) / 2;   // 200+ from both stars: swinging never touches it
-      const v = (w === 2 && k < 2) ? 'blink' : pick(['blink', 'blink', 'half', 'slide']);
+      const p = nextPos(400, 440 + D * 20, 150), ly = (cur.y + p.y) / 2;   // 200+ from both stars: swinging never touches it
+      const v = FIRST_OF.laser === n ? 'blink' : pick(['blink', 'blink', 'half', 'slide']);
       const l = { y: ly, cx: W / 2, len: W + 60, amp: 0, ms: 0, mph: 0, per: 0, duty: 1, ph: 0 };
       if (v === 'blink') { l.per = rr(2.2, 2.7) - D * 0.35; l.duty = rr(0.42, 0.5) + D * 0.1; l.ph = rr(0, l.per); }
       else if (v === 'half') {      // a wall from one side; the current star is on the open side, the next one above the wall
@@ -1094,21 +1202,23 @@ function buildLevel(n) {
       return addStar(p, 'normal');
     },
     bumper() {
-      const s = addStar(nextPos(360, 410 + D * 30, 60, 160), starType(false)), m = mid(cur, s);
+      const s = addStar(nextPos(360, 410 + D * 30, 170), starType(false)), m = mid(cur, s);
       const nb = D > 0.4 && rnd() < 0.4 ? 2 : 1;
       for (let j = 0; j < nb; j++) {
         const u = { bx: m.x, y: m.y, r: 24, amp: D > 0.25 && rnd() < 0.5 ? rr(60, 120) : 0, ms: rr(0.6, 1.1), ph: rr(0, TAU) };
-        for (let tries = 0; tries < 12; tries++) {
+        let ok = false;
+        for (let tries = 0; tries < 20 && !ok; tries++) {
           u.bx = clamp(m.x + side() * rr(nb === 2 ? 90 : 10, 150), 70 + u.amp, W - 70 - u.amp); u.y = m.y + rr(-20, 20);
-          if (farFromStars(u.bx, u.y, 195 + u.amp)) break;
+          ok = farFromStars(u.bx, u.y, 195 + u.amp);
         }
+        if (!ok) continue;                                             // no fair spot: leave it out
         L.bumpers.push(u);
         spots.push({ x: u.bx, y: u.y - 62 });
       }
       return s;
     },
     portal() {                                                         // a laser wall you can only get past through the portal
-      const s0 = cur, p = nextPos(640, 700 + D * 50, 30, 120), ly = s0.y - rr(290, 330);
+      const s0 = cur, p = nextPos(640, 700 + D * 50, 120), ly = s0.y - rr(290, 330);
       L.lasers.push({ y: ly, cx: W / 2, len: W + 60, amp: 0, ms: 0, mph: 0, per: 0, duty: 1, ph: 0 });
       let ax = s0.x + side() * rr(175, 220);
       if (ax < 60 || ax > W - 60) ax = 2 * s0.x - ax;
@@ -1120,52 +1230,101 @@ function buildLevel(n) {
       return s;
     },
     wind() {
-      const s = addStar(nextPos(230, 290 + D * 40, 80, 170), starType(false)), ax = side() * rr(420, 620) * (0.85 + D * 0.4);
+      const s = addStar(nextPos(230, 290 + D * 40, 170), starType(false)), ax = side() * rr(420, 620) * (0.85 + D * 0.4);
       L.winds.push({ y0: cur.y - 30, y1: s.y + 30, ax });
       spots.push({ x: (cur.x + s.x) / 2 - Math.sign(ax) * rr(130, 180), y: (cur.y + s.y) / 2 });
       return s;
     },
     blink() {
-      const s = addStar(nextPos(170, 225 + D * 45, 60, 150 + D * 50), 'blink');
+      const s = addStar(nextPos(170, 225 + D * 45, 200), 'blink');
       spots.push({ x: s.x + rr(-30, 30), y: s.y - rr(160, 195) });
       trail(cur, s);
       return s;
     },
     well() {
-      const s = addStar(nextPos(300, 350 + D * 40, 40, 140), 'normal'), m = mid(cur, s);
+      const s = addStar(nextPos(300, 350 + D * 40, 140), 'normal'), m = mid(cur, s);
       const h = { x: m.x, y: m.y, R: 230, core: 20, str: 1300 + D * 600 };
-      for (let tries = 0; tries < 16; tries++) {                       // far enough that swinging around a star never touches the core
-        let x = m.x + side() * rr(150, 230);
-        if (x < 90 || x > W - 90) x = 2 * m.x - x;
-        h.x = clamp(x, 90, W - 90); h.y = m.y + rr(-25, 25);
-        if (farFromStars(h.x, h.y, 245)) break;
-      }
+      if (!placeAway(h, m.x, m.y, 150, 230, 245, 90)) return s;        // far enough that swinging around a star never touches the core
       L.wells.push(h);
       const dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy) || 1;
       spots.push({ x: h.x + dx / d * 95, y: h.y + dy / d * 95 });
       return s;
     },
+    spikes() {                                                         // walls covered with spikes: touching them is the end
+      const c0 = cur, s = addStar(nextPos(240, 300 + D * 50, 150), starType(false));
+      s.x = clamp(s.x, 215, W - 215);                                  // its swing never reaches the walls
+      // early on the spikes sit on the far wall (only a wild throw reaches it), later on the side you fly to, then both
+      const toward = s.x > W / 2 ? 1 : -1, sides = D > 0.5 && rnd() < 0.5 ? [-1, 1] : [D < 0.4 ? -toward : toward];
+      // the upper part of the gap only: an ordinary bounce low near the start is still safe
+      const bottom = Math.min((c0.y + s.y) / 2 + 40, c0.x >= 215 && c0.x <= W - 215 ? c0.y + 60 : c0.y - 170);
+      for (const sd of sides) {
+        L.spikes.push({ side: sd, y0: bottom, y1: s.y - 120 });
+        spots.push({ x: sd < 0 ? 150 : W - 150, y: (c0.y + s.y) / 2 });
+      }
+      trail(c0, s);
+      return s;
+    },
+    spinner() {                                                        // a spiked bar spinning around its middle
+      const s = addStar(nextPos(440, 490 + D * 30, 160), starType(false)), m = mid(cur, s);
+      const sp = { x: m.x, y: m.y, len: rr(75, 95) + D * 15, w: side() * (rr(1.2, 1.7) + D * 0.6), a0: rr(0, TAU) };
+      placeAway(sp, m.x, m.y, 0, 120, sp.len + 185, 60);
+      const d = Math.min(...L.stars.map(t => Math.hypot(t.x - sp.x, t.y - sp.y) - (t.amp || 0)));
+      if (d < sp.len + 185) sp.len = d - 185;                          // squeezed: make the bar shorter instead
+      if (sp.len < 45) return s;                                       // no room at all: leave it out
+      L.spinners.push(sp);
+      spots.push({ x: sp.x, y: sp.y - sp.len - 40 });
+      return s;
+    },
+    vortex() {                                                         // purple whirlpool: pulls you in, spins you and spits you out downwards
+      const s = addStar(nextPos(340, 400 + D * 30, 150), starType(false)), m = mid(cur, s);
+      const v = { x: m.x, y: m.y, R: 165 + D * 30, core: 24, pull: 900 + D * 500, swirl: side() * (500 + D * 300), good: false, es: 650 };
+      if (!placeAway(v, m.x, m.y, 40, 140, 215, 80)) return s;
+      v.ex = v.x < m.x ? -0.6 : 0.6; v.ey = 0.8;
+      L.vortexes.push(v);
+      spots.push({ x: v.x + Math.sign(m.x - v.x || 1) * 85, y: v.y - 55 });
+      return s;
+    },
+    vortexG() {                                                        // golden whirlpool: a helper that throws you high up
+      const s = addStar(nextPos(200, 250 + D * 40, 200), starType(true)), m = mid(cur, s);
+      const v = { x: m.x, y: m.y, R: 150, core: 26, pull: 750, swirl: side() * 400, good: true, ex: 0, ey: -1, es: 950 };
+      if (!placeAway(v, m.x, m.y + 10, 140, 210, 200, 70)) return s;
+      L.vortexes.push(v);
+      spots.push({ x: v.x, y: v.y - rr(430, 520) });
+      return s;
+    },
+    arrow() {                                                          // a speed pad on the way that throws you at the next star
+      const s = addStar(nextPos(390, 460 + D * 40, 220), starType(false)), gap = cur.y - s.y;
+      const ay = cur.y - rr(185, gap - 185), q = (cur.y - ay) / gap;
+      const a = { x: clamp(lerp(cur.x, s.x, q) + side() * rr(0, 40), 60, W - 60), y: ay, r: 34, sp: 950 };
+      const dx = s.x - a.x, dy = s.y - a.y, tt = Math.hypot(dx, dy) / a.sp;
+      a.ang = Math.atan2(dy - 0.5 * G * tt * tt, dx);                  // aimed a bit above the star to make up for gravity
+      L.arrows.push(a);
+      spots.push({ x: a.x + side() * rr(120, 160), y: a.y - 20 });
+      return s;
+    },
   };
 
   for (let i = 1; i < count; i++) {
-    let kind;
-    if (i === 1 || mech === 'basic') kind = 'plain';                  // the first jump is always a calm one
-    else if (mech === 'meteor') kind = pick(['plain', 'plain', ...older]);
-    else if (mech === 'mix') kind = pick(['plain', 'mine', 'laser', 'bumper', 'portal', 'wind', 'blink', 'well']);
-    else kind = rnd() < (k === 0 ? 0.7 : 0.5 + D * 0.15) ? SEG_OF[mech] : pick(['plain', ...older]);
+    let kind = i === 1 ? 'plain' : pick(pool);                        // the first jump is always a calm one
     if (kind === 'portal' && portalsLeft-- <= 0) kind = 'plain';
     // a long jump needs speed: never start it from a star that crumbles or switches off
     if (kind !== 'plain' && kind !== 'blink' && (cur.type === 'crumble' || cur.type === 'blink')) { cur.type = 'normal'; delete cur.per; }
+    // and a crumbling star must not wait for a blinking one to light up
+    if (kind === 'blink' && cur.type === 'crumble') cur.type = 'normal';
     cur = SEG[kind]();
   }
   if (cur.type === 'crumble' || cur.type === 'blink') { cur.type = 'normal'; delete cur.per; }   // the last star is always a safe one
   L.finishY = cur.y - 190;
   if (w >= 3 && rnd() < 0.3) L.orbs.push({ kind: 'shield', si: L.stars.length >> 1 });
 
-  // three crystals: one from each third of the level, never on top of a laser, hole, bumper or star
+  // three crystals: one from each third of the level, never on top of an obstacle or a star
   const good = spots.map(sp => sp.ring ? sp : { x: clamp(sp.x, 40, W - 40), y: sp.y }).filter(sp => sp.ring || (
     L.lasers.every(l => Math.abs(sp.y - l.y) > 34) && L.wells.every(h => Math.hypot(sp.x - h.x, sp.y - h.y) > h.core + 40)
-    && L.bumpers.every(u => Math.hypot(sp.x - u.bx, sp.y - u.y) > u.r + u.amp + 30) && farFromStars(sp.x, sp.y, 40) && sp.y > L.finishY + 40));
+    && L.bumpers.every(u => Math.hypot(sp.x - u.bx, sp.y - u.y) > u.r + u.amp + 30)
+    && L.spinners.every(q => Math.hypot(sp.x - q.x, sp.y - q.y) > q.len + 30)
+    && L.vortexes.every(v => Math.hypot(sp.x - v.x, sp.y - v.y) > v.core + 45)
+    && L.arrows.every(a => Math.hypot(sp.x - a.x, sp.y - a.y) > a.r + 25)
+    && farFromStars(sp.x, sp.y, 40) && sp.y > L.finishY + 40));
   for (let j = 0; j < 3; j++) {
     const part = good.slice(Math.floor(good.length * j / 3), Math.floor(good.length * (j + 1) / 3));
     const s = L.stars[Math.max(1, Math.round((L.stars.length - 1) * (j + 1) / 3))];
@@ -1199,10 +1358,14 @@ function loadLevel(n) {
   for (const g of L.gems) orbs.push(g.ring ? { kind: 'gem', s: stars[g.si], a: g.a, R: g.R, spin: g.spin, x: 0, y: 0, ph: rand(0, TAU), dead: false }
     : { kind: 'gem', s: null, x: g.x, y: g.y, ph: rand(0, TAU), dead: false });
   L.lasers.forEach(l => lasers.push(Object.assign({ solid: true }, l)));
-  L.portals.forEach((q, i) => portals.push(Object.assign({ c: i % 2 ? COL.portalB : COL.portalA }, q)));
+  L.portals.forEach((q, i) => portals.push(Object.assign({ kind: 'portal', c: i % 2 ? COL.portalB : COL.portalA }, q)));
   L.winds.forEach(w => winds.push(Object.assign({}, w)));
-  L.bumpers.forEach(u => bumpers.push(Object.assign({ hit: 0 }, u)));
+  L.bumpers.forEach(u => bumpers.push(Object.assign({ kind: 'bumper', hit: 0 }, u)));
   L.wells.forEach(h => wells.push(Object.assign({ solid: true }, h)));
+  L.spikes.forEach(s => spikes.push(Object.assign({ solid: true }, s)));
+  L.spinners.forEach(s => spinners.push(Object.assign({ solid: true }, s)));
+  L.vortexes.forEach(v => vortexes.push(Object.assign({ kind: 'vortex' }, v)));
+  L.arrows.forEach(a => arrows.push(Object.assign({ kind: 'arrow', hit: 0 }, a)));
   voidY = voidSpd ? P.y + VH * 0.42 + 160 : 1e9;
 }
 
@@ -1283,7 +1446,7 @@ function attach(s) {
   if (Math.abs(cross) < 1e-3 * d) P.dir = Math.cos(P.ang) > 0 ? -1 : 1;
   else P.dir = cross > 0 ? 1 : -1;
   P.spd = clamp(Math.hypot(P.vx, P.vy) * 0.95, 380, MAXSPD);
-  s.attT = 0; gravityOn = true; grabs++; lastAttachY = s.y; P.pcd = 0;
+  s.attT = 0; gravityOn = true; grabs++; lastAttachY = s.y; P.pcd = 0; P.acd = 0; P.vcd = 0;
   if (!s.visited) {
     s.visited = true;
     if (s.type === 'crumble') R.crumble++;
@@ -1357,10 +1520,9 @@ function die(cause) {
   if (state !== 'play') return;
   state = 'dying'; dyingT = 1.2; deathCause = cause; P.dead = true; P.att = null; holding = false;
   burst(P.x, P.y, COL.white, 60, 520, 1.2, 12);
-  burst(P.x, P.y, cause === 'void' ? biome().voidc : cause === 'meteor' ? COL.meteor : cause === 'well' ? COL.well : COL.mine, 70, 380, 1.4, 14);
+  burst(P.x, P.y, cause === 'void' ? biome().voidc : cause === 'meteor' ? COL.meteor : cause === 'well' ? COL.well : cause === 'fall' ? biome().orb : COL.mine, 70, 380, 1.4, 14);
   shake = 22; flash = 1;
   tone(170, 1.3, 'sawtooth', 0.13, 0, 28); noise(1.1, 0.35, 1400, 60, 0.7);
-  if (droneGain) droneGain.gain.setTargetAtTime(0.015, AC.currentTime, 0.3);
   gameplay(false);
 }
 // levels: the ball crossed the finish line
@@ -1393,7 +1555,7 @@ function revive() {
   let s = (lastStar && !lastStar.dead) ? lastStar : null;
   if (!s) { let bd = 1e9; for (const t of stars) { if (t.dead) continue; const d = Math.abs(t.y - lastAttachY); if (d < bd) { bd = d; s = t; } } }
   state = 'play'; deathCause = 'void'; chanceUsed = true; holding = false;
-  P.dead = false; P.att = null; P.vx = 0; P.vy = 0;
+  P.dead = false; P.att = null; P.vx = 0; P.vy = 0; P.cap = 0;
   P.x = s ? s.x : W / 2; P.floatY = (s ? s.y : lastAttachY) + 120; P.y = P.floatY;
   lastAttachY = P.floatY - 120;
   minPY = Math.max(minPY, P.floatY);          // the void is held relative to this point, the record height stays
@@ -1408,7 +1570,6 @@ function revive() {
   ring(P.x, P.y, COL.white, 30, 380); flash = 0.5; happy(2.5);
   pop(P.x, P.y - 50, 'ВТОРОЙ ШАНС!', COL.gold, 26, 1.6);
   [0, 4, 7, 12].forEach((k, i) => tone(note(10 + k, 220), 0.6, 'triangle', 0.08, i * 0.07));
-  if (droneGain) droneGain.gain.setTargetAtTime(0.05, AC.currentTime, 0.5);
   gameplay(true);
 }
 
@@ -1462,12 +1623,12 @@ function startGame() {
   document.getElementById('tp').textContent = lv ? 'цель ' + fmtTime(LV.par) : '';
   for (const k in hudCache) hudCache[k] = -1;
   if (lv) {
-    showBanner('УРОВЕНЬ ' + lvN + (LV.boss ? ' · БОСС' : ''), WORLDS[LV.w].name.toUpperCase(), biome().orb);
-    const r = R, later = (a, b) => setTimeout(() => { if (R === r && state === 'play') toast(a, b); }, 900);
-    if (LV.k === 0 && LV.w > 0) later('НОВОЕ: ' + WORLDS[LV.w].name.toUpperCase(), WORLDS[LV.w].desc);
-    if (LV.boss) later('БОСС!', 'Пустота гонится за тобой — не медли!');
+    showBanner('УРОВЕНЬ ' + lvN + (LV.boss ? ' · БОСС' : ''), LV.name.toUpperCase(), biome().orb);
+    const r = R, later = (a, b) => setTimeout(() => { if (R === r && state === 'play') toast(a, b); }, 2700);   // after the level banner
+    const fresh = Object.keys(NEW_HINT).find(key => FIRST_OF[key] === lvN);
+    if (fresh) later('НОВОЕ: ' + NEW_HINT[fresh][0], NEW_HINT[fresh][1]);
+    else if (LV.boss) later('БОСС!', 'Пустота гонится за тобой — не медли!');
   }
-  if (droneGain) droneGain.gain.setTargetAtTime(0.05, AC.currentTime, 0.5);
   tone(note(5), 0.4, 'sine', 0.08); tone(note(9), 0.5, 'sine', 0.06, 0.08);
   gameplay(true);
 }
@@ -1556,7 +1717,7 @@ function finishLevel(won) {
 
   const msgs = won ? ['ПРОЙДЕНО!', 'УРА!', 'СУПЕР!', 'ОТЛИЧНО!'] : (DEATH_MSG[deathCause] || DEATH_MSG.quit);
   document.getElementById('lrT').textContent = msgs[Math.random() * msgs.length | 0];
-  document.getElementById('lrN').textContent = 'УРОВЕНЬ ' + n + (L.boss ? ' · БОСС' : '');
+  document.getElementById('lrN').textContent = n + ' · ' + L.name.toUpperCase() + (L.boss ? ' · БОСС' : '');
   const sEl = document.getElementById('lrS'), pEl = document.getElementById('lrP');
   sEl.classList.toggle('hidden', !won); pEl.classList.toggle('hidden', won);
   if (won) {
@@ -1605,16 +1766,21 @@ function updateWorld(dt) {
     if (o.s) { o.a += (o.spin !== undefined ? o.spin : 0.5) * dt; o.x = o.s.x + Math.cos(o.a) * o.R; o.y = o.s.y + Math.sin(o.a) * o.R; }
   }
   for (let i = 0; i < bumpers.length; i++) if (bumpers[i].hit > 0) bumpers[i].hit = Math.max(0, bumpers[i].hit - dt * 4);
+  for (let i = 0; i < arrows.length; i++) if (arrows[i].hit > 0) arrows[i].hit = Math.max(0, arrows[i].hit - dt * 3);
 }
 
 // ---------- free flight (shared by the game and the trajectory hint, so the hint is exact) ----------
-const ACC = { x: 0, y: 0 };
+const ACC = { x: 0, y: 0 }, SPIKE_HIT = { solid: true };
 function flyAccel(x, y) {
   let ax = 0, ay = G;
   for (let i = 0; i < winds.length; i++) { const w = winds[i]; if (y < w.y0 && y > w.y1) ax += w.ax; }
   for (let i = 0; i < wells.length; i++) {
     const h = wells[i], dx = h.x - x, dy = h.y - y, d = Math.hypot(dx, dy);
     if (d < h.R && d > 1) { const k = h.str * (1 - d / h.R) / d; ax += dx * k; ay += dy * k; }
+  }
+  for (let i = 0; i < vortexes.length; i++) {
+    const v = vortexes[i], dx = v.x - x, dy = v.y - y, d = Math.hypot(dx, dy);
+    if (d < v.R && d > 1) { const f = (1 - d / v.R) / d; ax += (dx * v.pull - dy * v.swirl) * f; ay += (dy * v.pull + dx * v.swirl) * f; }
   }
   ACC.x = ax; ACC.y = ay;
 }
@@ -1629,6 +1795,13 @@ function flyContacts(b, t) {
     b.vx *= ns / sp; b.vy *= ns / sp; b.x = ux + nx * rr; b.y = u.y + ny * rr;
     return u;
   }
+  if (b.acd <= 0) for (let i = 0; i < arrows.length; i++) {
+    const a = arrows[i];
+    if (Math.hypot(b.x - a.x, b.y - a.y) > a.r) continue;
+    const sp = Math.max(a.sp, Math.hypot(b.vx, b.vy));
+    b.x = a.x; b.y = a.y; b.vx = Math.cos(a.ang) * sp; b.vy = Math.sin(a.ang) * sp; b.acd = 0.35;
+    return a;
+  }
   if (b.pcd > 0) return null;
   for (let i = 0; i < portals.length; i++) {
     const q = portals[i];
@@ -1641,26 +1814,68 @@ function flyContacts(b, t) {
   }
   return null;
 }
+// one step of free flight for the ball or for a predicted ball; returns what happened:
+// 'wall', 'spike' (a spiked wall), 'vin' / 'vout' (caught by / thrown out of a vortex), a bumper / portal / arrow, or null
 function flyMove(b, dt, t) {
+  if (b.cap > 0) {                           // caught by a vortex: spin in its middle, then get thrown out
+    const v = vortexes[b.cv];
+    b.cap -= dt; b.ca += (v.swirl > 0 ? 11 : -11) * dt;
+    b.x = v.x + Math.cos(b.ca) * 12; b.y = v.y + Math.sin(b.ca) * 12; b.vx = 0; b.vy = 0;
+    if (b.cap > 0) return null;
+    b.vx = v.ex * v.es; b.vy = v.ey * v.es; b.x = v.x + v.ex * (v.core + 8); b.y = v.y + v.ey * (v.core + 8); b.vcd = 0.5;
+    return 'vout';
+  }
   flyAccel(b.x, b.y);
   b.vx += ACC.x * dt; b.vy += ACC.y * dt;
   const sp = Math.hypot(b.vx, b.vy);
   if (sp > MAXFREE) { b.vx *= MAXFREE / sp; b.vy *= MAXFREE / sp; }
   b.x += b.vx * dt; b.y += b.vy * dt;
   let hit = null;
-  if (b.x < 10 || b.x > W - 10) { b.x = clamp(b.x, 10, W - 10); b.vx = -b.vx * (K.bouncy ? 1.08 : 0.85); hit = 'wall'; }
+  if (b.x < 10 || b.x > W - 10) {
+    const sd = b.x < W / 2 ? -1 : 1;
+    b.x = clamp(b.x, 10, W - 10); b.vx = -b.vx * (K.bouncy ? 1.08 : 0.85); hit = 'wall';
+    for (let i = 0; i < spikes.length; i++) { const s = spikes[i]; if (s.side === sd && b.y < s.y0 && b.y > s.y1) { hit = 'spike'; break; } }
+  }
   if (b.pcd > 0) b.pcd -= dt;
-  if (bumpers.length || portals.length) hit = flyContacts(b, t) || hit;
+  if (b.acd > 0) b.acd -= dt;
+  if (b.vcd > 0) b.vcd -= dt;
+  else for (let i = 0; i < vortexes.length; i++) {
+    const v = vortexes[i];
+    if (Math.hypot(b.x - v.x, b.y - v.y) > v.core) continue;
+    b.cap = v.good ? 0.45 : 0.75; b.cv = i; b.ca = Math.atan2(b.y - v.y, b.x - v.x); b.vx = 0; b.vy = 0;
+    return 'vin';
+  }
+  if (bumpers.length || portals.length || arrows.length) hit = flyContacts(b, t) || hit;
   return hit;
 }
+// distance from a point to a spinning spiked bar at time t
+function spinnerDist(q, t, x, y) {
+  const a = q.a0 + q.w * t, ux = Math.cos(a), uy = Math.sin(a);
+  const pr = clamp((x - q.x) * ux + (y - q.y) * uy, -q.len, q.len);
+  return Math.hypot(x - q.x - ux * pr, y - q.y - uy * pr);
+}
 function contactFx(hit) {
-  if (hit === 'wall') {
+  if (hit === 'wall' || hit === 'spike') {
     if (time - lastWallT > 0.15) {
       lastWallT = time;
       burst(P.x, P.y, biome().orb, 12, 200, 0.4, 6);
       tone(note(K.bouncy ? 8 : 1, 440), 0.12, K.bouncy ? 'triangle' : 'square', 0.04);
     }
-  } else if (hit.r) {                       // bumper
+  } else if (hit === 'vin') {               // swallowed by a vortex
+    const v = vortexes[P.cv];
+    ring(P.x, P.y, v.good ? COL.vortexG : COL.vortex, 20, 240); trN = 0;
+    tone(note(v.good ? 6 : 3), 0.7, 'sine', 0.1, 0, note(v.good ? 16 : 13)); noise(0.6, 0.08, 300, 2000);
+    if (v.good) happy(1.2);
+  } else if (hit === 'vout') {
+    const v = vortexes[P.cv];
+    if (v.good) { pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); warpT = 0.7; shake = Math.max(shake, 6); happy(1.5); tone(200, 0.5, 'sawtooth', 0.05, 0, 900); }
+    else { pop(P.x, P.y + 30, 'ТЬФУ!', COL.vortex, 22, 1); tone(note(8), 0.4, 'triangle', 0.08, 0, note(1)); }
+    burst(P.x, P.y, v.good ? COL.vortexG : COL.vortex, 18, 300, 0.6, 8);
+  } else if (hit.kind === 'arrow') {
+    hit.hit = 1; warpT = Math.max(warpT, 0.35);
+    burst(P.x, P.y, COL.arrow, 16, 280, 0.5, 8);
+    tone(note(10), 0.3, 'square', 0.04, 0, note(19)); noise(0.25, 0.06, 1500, 5000);
+  } else if (hit.kind === 'bumper') {
     hit.hit = 1; shake = Math.max(shake, 4);
     burst(P.x, P.y, COL.bumper, 14, 260, 0.5, 8);
     tone(note(9 + (Math.random() * 4 | 0), 220), 0.25, 'triangle', 0.12, 0, note(14, 220));
@@ -1674,7 +1889,7 @@ function step(dt) {
   updateWorld(dt);
 
   if (P.att && (!holding || P.att.dead || !starOn(P.att, time))) release();
-  if (!P.att && holding) { const t = findTarget(); if (t) attach(t); }
+  if (!P.att && holding && !(P.cap > 0)) { const t = findTarget(); if (t) attach(t); }
 
   if (P.att) {
     const s = P.att;
@@ -1688,6 +1903,7 @@ function step(dt) {
     if (s.type === 'crumble' && s.attT > CRUMBLE_T) breakStar(s);
   } else if (gravityOn) {
     const hit = flyMove(P, dt, time);
+    if (hit === 'spike' && !hazardHit(SPIKE_HIT)) { die('spike'); return; }
     if (hit) contactFx(hit);
   } else { P.vx = 0; P.vy = 0; P.y = P.floatY + Math.sin(time * 2.2) * 5; }
   if (P.inv > 0) P.inv -= dt;
@@ -1714,7 +1930,12 @@ function step(dt) {
     }
   }
 
-  // lasers and black holes (levels)
+  // spinning spiked bars, lasers and black holes (levels)
+  for (let i = 0; i < spinners.length; i++) {
+    const q = spinners[i];
+    if (Math.abs(P.y - q.y) > q.len + 20 || spinnerDist(q, time, P.x, P.y) > BALL_R + 5) continue;
+    if (!hazardHit(q)) { die('spinner'); return; }
+  }
   for (let i = 0; i < lasers.length; i++) {
     const l = lasers[i];
     if (Math.abs(P.y - l.y) > BALL_R * 0.7 + 4 || !laserOn(l, time)) continue;
@@ -1735,7 +1956,7 @@ function step(dt) {
     if (gravityOn) {
       meteorT -= dt;
       if (meteorT <= 0) {
-        meteorT = mode === 'levels' ? rand(1.5, 2.8) * (1 - LV.k * 0.03) : rand(1.6, 3) * Math.max(0.5, 1 - (maxH - METEOR_H) / 3500);
+        meteorT = mode === 'levels' ? rand(1.7, 3) * (1 - LV.k * 0.025) * (LV.boss ? 1.25 : 1) : rand(1.6, 3) * Math.max(0.5, 1 - (maxH - METEOR_H) / 3500);
         warns.push({ x: rand(50, W - 50), t: 0.9, vx: rand(-120, 120), done: false });
       }
     }
@@ -2298,11 +2519,90 @@ function drawFinish() {
   ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 5; ctx.strokeText('ФИНИШ', W / 2, y - 22);
   ctx.fillStyle = '#ffd75a'; ctx.fillText('ФИНИШ', W / 2, y - 22);
 }
+function drawSpikes(s) {
+  if (s.y1 > camY + VH + 40 || s.y0 < camY - 40) return;
+  const y0 = Math.min(s.y0, camY + VH + 40), y1 = Math.max(s.y1, camY - 40), d = s.side < 0 ? 1 : -1, x = s.side < 0 ? 0 : W, q = 18;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = grad('spk' + s.side, () => { const g = ctx.createLinearGradient(0, 0, 46 * d, 0); g.addColorStop(0, rgba(COL.spike, 0.4)); g.addColorStop(1, rgba(COL.spike, 0)); return g; });
+  ctx.save(); ctx.translate(x, 0); ctx.fillRect(d > 0 ? 0 : -46, y1, 46, y0 - y1); ctx.restore();
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#3a0b16'; ctx.fillRect(d > 0 ? 0 : W - 6, y1, 6, y0 - y1);
+  ctx.beginPath();
+  for (let y = Math.ceil(y1 / q) * q; y + q <= y0 + q; y += q) { ctx.moveTo(x, y); ctx.lineTo(x + d * 17, y + q / 2); ctx.lineTo(x, y + q); }
+  ctx.fillStyle = '#ff5c7a'; ctx.fill();
+  ctx.strokeStyle = '#ffd0da'; ctx.lineWidth = 1.2; ctx.lineJoin = 'round'; ctx.stroke();
+}
+function drawSpinner(q) {
+  if (q.y < camY - 200 || q.y > camY + VH + 200) return;
+  const a = q.a0 + q.w * time, ux = Math.cos(a), uy = Math.sin(a);
+  ctx.globalCompositeOperation = 'lighter';
+  glow(COL.spinner, q.x + ux * q.len, q.y + uy * q.len, 32, 0.55); glow(COL.spinner, q.x - ux * q.len, q.y - uy * q.len, 32, 0.55);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.strokeStyle = rgba(COL.spinner, 0.13); ctx.lineWidth = 1.5; ctx.setLineDash([3, 8]); circle(q.x, q.y, q.len + 6); ctx.stroke(); ctx.setLineDash([]);
+  ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(a);
+  ctx.fillStyle = '#ff5c7a'; ctx.beginPath();
+  for (let s = -q.len + 9; s <= q.len - 9; s += 14) {
+    ctx.moveTo(s - 5, -4); ctx.lineTo(s, -12); ctx.lineTo(s + 5, -4);
+    ctx.moveTo(s - 5, 4); ctx.lineTo(s, 12); ctx.lineTo(s + 5, 4);
+  }
+  ctx.fill();
+  ctx.fillStyle = '#c9d2e0'; ctx.fillRect(-q.len, -4.5, q.len * 2, 9);
+  ctx.fillStyle = '#7d8aa0'; ctx.fillRect(-q.len, 1.5, q.len * 2, 3);
+  ctx.fillStyle = '#ff5c7a'; circle(q.len, 0, 7); ctx.fill(); circle(-q.len, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#2a2f3a'; circle(q.x, q.y, 11); ctx.fill();
+  ctx.strokeStyle = '#c9d2e0'; ctx.lineWidth = 2.5; ctx.stroke();
+}
+function drawVortex(v) {
+  if (v.y < camY - v.R - 40 || v.y > camY + VH + v.R + 40) return;
+  const c = v.good ? COL.vortexG : COL.vortex, dir = v.swirl > 0 ? 1 : -1;
+  ctx.globalCompositeOperation = 'lighter';
+  glow(c, v.x, v.y, v.R * 0.95, 0.38);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.lineWidth = 2;                                    // rings sliding inwards: it pulls
+  for (let i = 0; i < 4; i++) {
+    const ph = (time * 0.6 + i / 4) % 1;
+    ctx.strokeStyle = rgba(c, 0.55 * ph); circle(v.x, v.y, v.core + (v.R - v.core) * (1 - ph)); ctx.stroke();
+  }
+  ctx.strokeStyle = rgba(c, 0.85); ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let a = 0; a < 3; a++) {
+    ctx.beginPath();
+    for (let j = 0; j <= 10; j++) {
+      const r = v.core + (v.R * 0.62 - v.core) * j / 10, ang = a * TAU / 3 + dir * (time * 4 - j * 0.42);
+      if (j) ctx.lineTo(v.x + Math.cos(ang) * r, v.y + Math.sin(ang) * r); else ctx.moveTo(v.x + Math.cos(ang) * r, v.y + Math.sin(ang) * r);
+    }
+    ctx.stroke();
+  }
+  ctx.fillStyle = v.good ? '#4a2c00' : '#1b0630'; circle(v.x, v.y, v.core); ctx.fill();
+  ctx.strokeStyle = rgba(c, 1); ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+  const b = Math.sin(time * 6) * 2;
+  if (v.good) { ctx.moveTo(v.x - 8, v.y + 5 + b); ctx.lineTo(v.x, v.y - 5 + b); ctx.lineTo(v.x + 8, v.y + 5 + b); }       // up: it throws you up
+  else { ctx.moveTo(v.x - 8, v.y - 5 - b); ctx.lineTo(v.x, v.y + 5 - b); ctx.lineTo(v.x + 8, v.y - 5 - b); }             // down: it spits you down
+  ctx.stroke();
+}
+function drawArrow(a) {
+  if (a.y < camY - 60 || a.y > camY + VH + 60) return;
+  ctx.globalCompositeOperation = 'lighter';
+  glow(COL.arrow, a.x, a.y, 58 + a.hit * 30, 0.5 + a.hit * 0.4);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ang);
+  ctx.fillStyle = 'rgba(8,40,28,0.88)'; circle(0, 0, a.r); ctx.fill();
+  ctx.strokeStyle = rgba(COL.arrow, 0.9); ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 4.5;
+  for (let i = 0; i < 3; i++) {                          // chevrons running forward: this way!
+    const ph = (time * 2 + i / 3) % 1, x = -14 + ph * 28;
+    ctx.strokeStyle = rgba(COL.arrow, Math.sin(ph * Math.PI));
+    ctx.beginPath(); ctx.moveTo(x - 7, -11); ctx.lineTo(x + 4, 0); ctx.lineTo(x - 7, 11); ctx.stroke();
+  }
+  ctx.restore();
+}
 // first levels: dotted path the ball would take if you let go right now
-const HB = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0 };
+const HB = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
 function drawAimHint() {
   const s = P.att, k = s.type === 'boost' ? 1.45 : 1;
-  HB.x = P.x; HB.y = P.y; HB.vx = -Math.sin(P.ang) * P.dir * P.spd * k; HB.vy = Math.cos(P.ang) * P.dir * P.spd * k; HB.pcd = 0;
+  HB.x = P.x; HB.y = P.y; HB.vx = -Math.sin(P.ang) * P.dir * P.spd * k; HB.vy = Math.cos(P.ang) * P.dir * P.spd * k;
+  HB.pcd = 0; HB.acd = 0; HB.vcd = 0; HB.cap = 0;
   ctx.fillStyle = '#fff';
   for (let i = 1; i <= 45; i++) {
     flyMove(HB, 1 / 60, time + i / 60);
@@ -2359,6 +2659,7 @@ function ballMood() {
   if (state === 'play' && voidOn() && gravityOn && voidY - P.y < 230) return 'scared';
   for (let i = 0; i < meteors.length; i++) if (Math.hypot(meteors[i].x - P.x, meteors[i].y - P.y) < 120) return 'scared';
   for (let i = 0; i < wells.length; i++) if (Math.hypot(wells[i].x - P.x, wells[i].y - P.y) < 130) return 'scared';
+  if (P.cap > 0) return vortexes[P.cv].good ? 'happy' : 'scared';
   return 'normal';
 }
 
@@ -2392,7 +2693,9 @@ function render() {
   const top = camY - 120, bot = camY + VH + 120;
 
   for (let i = 0; i < winds.length; i++) drawWind(winds[i]);
+  for (let i = 0; i < spikes.length; i++) drawSpikes(spikes[i]);
   for (let i = 0; i < wells.length; i++) drawWell(wells[i]);
+  for (let i = 0; i < vortexes.length; i++) drawVortex(vortexes[i]);
   if (mode === 'levels') drawFinish();
 
   ctx.lineWidth = 1; ctx.setLineDash([2, 10]); ctx.strokeStyle = rgba(COL.mine, 0.16);
@@ -2424,6 +2727,8 @@ function render() {
   for (let i = 0; i < bumpers.length; i++) drawBumper(bumpers[i]);
   for (let i = 0; i < portals.length; i++) drawPortal(portals[i]);
   for (let i = 0; i < lasers.length; i++) drawLaser(lasers[i]);
+  for (let i = 0; i < arrows.length; i++) drawArrow(arrows[i]);
+  for (let i = 0; i < spinners.length; i++) drawSpinner(spinners[i]);
   for (let i = 0; i < meteors.length; i++) if (!meteors[i].dead) drawMeteor(meteors[i]);
 
   const b = ballDef();
@@ -2828,7 +3133,7 @@ const CHANCE_T = 6, CHANCE_MIN_H = 60;
 const chanceEl = document.getElementById('chance'), chBar = document.getElementById('chBar');
 let chanceBarW = -1;
 function chanceOK() {
-  return !chanceUsed && ['void', 'mine', 'meteor', 'laser', 'well', 'fall'].includes(deathCause)
+  return !chanceUsed && ['void', 'mine', 'meteor', 'laser', 'well', 'fall', 'spike', 'spinner'].includes(deathCause)
     && (mode === 'levels' ? grabs >= 3 : maxH >= CHANCE_MIN_H);
 }
 function offerChance() {

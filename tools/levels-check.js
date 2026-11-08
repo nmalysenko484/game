@@ -11,13 +11,15 @@
 // is the basis for the par time) and "gems" (waits for throws that also pick up crystals).
 // "reachable" = how many of the 3 crystals some throw can pick up (and then land on a star).
 // The last line prints LV_PAR values for index.html.
+// When adding a new obstacle: teach it to tryRelease() and swingSafe() here (and to __gemProbe if it blocks
+// throws), otherwise the bot flies into it and reports fair levels as broken.
 const path = require('path');
 const { chromium } = require('playwright');
 
 const BOT = `
 (function () {
   const DT = 1 / 120, SIM_DT = DT, SIM_STEPS = 300;      // same step as the game run below: the prediction is exact
-  const B = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0 };
+  const B = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
   const starX = (s, t) => s.type === 'moving' ? s.bx + Math.sin(t * s.ms + s.ph) * s.amp : s.x;
   // the first moments after grabbing star s at time t (as attach() + step() do it): does the swing hit something?
   function swingSafe(s, t, dt0) {
@@ -30,6 +32,8 @@ const BOT = `
       L += (clamp(L, 70, 150) - L) * Math.min(1, SIM_DT * (L > 150 ? 9 : 4));
       ang += dir * spd / L * SIM_DT;
       const x = starX(s, tt) + Math.cos(ang) * L, y = s.y + Math.sin(ang) * L;
+      for (const q of spinners) if (Math.abs(y - q.y) < q.len + 30 && spinnerDist(q, tt, x, y) < BALL_R + 12) return false;
+      if ((x < 14 || x > W - 14) && spikes.some(z => z.side === (x < W / 2 ? -1 : 1) && y < z.y0 && y > z.y1)) return false;
       for (const l of lasers) if (Math.abs(y - l.y) < 16 && laserOn(l, tt)) { const cx = laserX(l, tt); if (x > cx - l.len / 2 - 10 && x < cx + l.len / 2 + 10) return false; }
       for (const m of mines) {
         if (m.dead) continue;
@@ -44,12 +48,14 @@ const BOT = `
   // returns { ok, star, win, gems } for letting go right now
   function tryRelease() {
     const s0 = P.att, k = s0.type === 'boost' && !s0.dead ? 1.45 : 1;
-    B.x = P.x; B.y = P.y; B.vx = -Math.sin(P.ang) * P.dir * P.spd * k; B.vy = Math.cos(P.ang) * P.dir * P.spd * k; B.pcd = 0;
+    B.x = P.x; B.y = P.y; B.vx = -Math.sin(P.ang) * P.dir * P.spd * k; B.vy = Math.cos(P.ang) * P.dir * P.spd * k;
+    B.pcd = 0; B.acd = 0; B.vcd = 0; B.cap = 0;
     let gems = 0;
     const gemHit = new Set();
     for (let i = 1; i <= SIM_STEPS; i++) {
       const t = time + i * SIM_DT, dtt = i * SIM_DT;
-      flyMove(B, SIM_DT, t);
+      if (flyMove(B, SIM_DT, t) === 'spike') return { ok: false };
+      for (const q of spinners) if (Math.abs(B.y - q.y) < q.len + 30 && spinnerDist(q, t, B.x, B.y) < BALL_R + 12) return { ok: false };
       if (B.y < finishY) return { ok: true, win: true, gems, star: null };
       for (const l of lasers) {
         if (Math.abs(B.y - l.y) < 16 && laserOn(l, t)) { const cx = laserX(l, t); if (B.x > cx - l.len / 2 - 10 && B.x < cx + l.len / 2 + 10) return { ok: false }; }
@@ -73,9 +79,10 @@ const BOT = `
         if (Math.hypot(B.x - gx, B.y - gy) < 28) { gemHit.add(o); gems++; }
       }
       // the star the ball would grab (nearest in reach), as in findTarget()
-      let best = null, bd = K.grab * 0.92;
+      if (B.cap > 0) continue;                       // spinning inside a vortex: can't grab anything
+      let best = null, bd = K.grab;                  // exactly like findTarget(): the prediction must match the real grab
       for (const s of stars) {
-        if (s.dead || !starOn(s, t) || (s === s0 && dtt < 0.35)) continue;
+        if (s.dead || !starOn(s, t) || (s === s0 && dtt < 0.3)) continue;
         const d = Math.hypot(B.x - starX(s, t), B.y - s.y);
         if (d < bd) { bd = d; best = s; }
       }
@@ -92,16 +99,18 @@ const BOT = `
   // and then safely reaches a star? Blinking or moving lasers and mines are skipped: those only need timing.
   window.__gemProbe = function (n) {
     save.mode = 'levels'; lvN = n; reset(); state = 'play';
-    const gems = orbs.filter(o => o.kind === 'gem'), got = gems.map(() => false), b = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0 };
+    const gems = orbs.filter(o => o.kind === 'gem'), got = gems.map(() => false), b = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
     const wall = lasers.filter(l => !l.per && !l.amp);
     const samples = gems.map(o => o.s ? Array.from({ length: 12 }, (_, i) => ({ x: o.s.x + Math.cos(i * Math.PI / 6) * o.R, y: o.s.y + Math.sin(i * Math.PI / 6) * o.R })) : [{ x: o.x, y: o.y }]);
     for (const s of stars) for (const spd of s.type === 'boost' ? [650, 950, 1300, 1500] : [450, 650, 850, 1050]) for (const dir of [1, -1]) for (let a = 0; a < 72; a++) {
       if (got.every(Boolean)) return got.filter(Boolean).length;
       const ang = a * Math.PI / 36;
-      b.x = s.x + Math.cos(ang) * 150; b.y = s.y + Math.sin(ang) * 150; b.vx = -Math.sin(ang) * dir * spd; b.vy = Math.cos(ang) * dir * spd; b.pcd = 0;
+      b.x = s.x + Math.cos(ang) * 150; b.y = s.y + Math.sin(ang) * 150; b.vx = -Math.sin(ang) * dir * spd; b.vy = Math.cos(ang) * dir * spd;
+      b.pcd = 0; b.acd = 0; b.vcd = 0; b.cap = 0;
       let hit = -1;
       for (let i = 1; i < 200; i++) {
-        flyMove(b, 1 / 60, i / 60);
+        if (flyMove(b, 1 / 60, i / 60) === 'spike') break;
+        if (b.cap > 0) continue;
         if (wall.some(l => Math.abs(b.y - l.y) < 14 && b.x > l.cx - l.len / 2 - 8 && b.x < l.cx + l.len / 2 + 8)) break;
         if (wells.some(h => Math.hypot(b.x - h.x, b.y - h.y) < h.core + 10)) break;
         if (b.y > s.y + 700) break;
