@@ -44,6 +44,15 @@
   #banner .n{font-size:clamp(22px,5vw,44px);font-weight:900;letter-spacing:.06em;margin-top:8px;text-shadow:0 0 30px currentColor}
   #banner.show{animation:ban 3.2s ease forwards}
   @keyframes ban{0%{opacity:0;transform:translateY(14px) scale(.96)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+  #bDev{position:fixed;left:12px;bottom:12px;z-index:20;font:900 11px Unbounded,sans-serif;letter-spacing:.1em;color:#ffd36a;
+    padding:8px 11px;border-radius:10px;border:1px solid rgba(255,200,90,.55);background:rgba(40,25,0,.65);cursor:pointer}
+  .devg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  .devg .btn{font-size:11px;letter-spacing:.06em;padding:11px 6px;margin:0;width:100%;min-width:0}
+  .devg .btn.on{border-color:#7dffb0;color:#7dffb0;background:rgba(125,255,176,.08)}
+  .devg .btn.warn{border-color:rgba(255,120,120,.5);color:#ffb0b0}
+  .devg .btn:disabled{opacity:.35;cursor:default}
+  .devg .wide{grid-column:1 / -1}
+  .devi{font-size:11px;line-height:1.5;opacity:.7;margin-top:8px}
   #mute{position:fixed;right:16px;bottom:14px;font-size:10px;letter-spacing:.15em;color:rgba(220,235,255,.35);pointer-events:none}
   #toast{position:fixed;left:50%;top:76px;transform:translateX(-50%);pointer-events:none;opacity:0;text-align:center;
     padding:10px 18px;border-radius:12px;background:rgba(40,30,0,.65);border:1px solid rgba(255,215,90,.5);box-shadow:0 0 30px rgba(255,190,60,.35);max-width:90vw}
@@ -277,11 +286,12 @@ window.fontReady = (function () {
 <div id="banner"><div class="z" id="bz">ЗОНА 2</div><div class="n" id="bn">—</div></div>
 <div id="toast"><div class="t1" id="tt1"></div><div class="t2" id="tt2"></div></div>
 <div id="mute"></div>
+<button id="bDev" class="hidden">DEV</button>
 <div id="boot">ЗАГРУЗКА</div>
 
 <div id="ov">
   <div id="menu" class="panel hidden">
-    <div class="title">ОРБИТА</div>
+    <div class="title" id="mTitle">ОРБИТА</div>
     <div class="sub">зажми — цепляйся · отпусти — лети</div>
     <div class="wallet">
       <span class="dust">✦ <b class="dustv">0</b></span>
@@ -369,6 +379,25 @@ window.fontReady = (function () {
     <div class="btns"><button class="btn primary" id="bResume">ПРОДОЛЖИТЬ</button><button class="btn" id="bQuit">ЗАВЕРШИТЬ</button></div>
   </div>
 
+  <div id="devp" class="panel slim hidden">
+    <div class="title small">РАЗРАБОТЧИК</div>
+    <div class="devi">Бессмертие, скорость и открытые уровни сохранение не трогают.<br>
+      Деньги, шарики и «Пройти уровень» — меняют, но всё можно вернуть кнопкой «Вернуть моё сохранение».</div>
+    <div class="devg" id="devg">
+      <button class="btn" data-dev="god"></button>
+      <button class="btn" data-dev="speed"></button>
+      <button class="btn" data-dev="open"></button>
+      <button class="btn" data-dev="fps"></button>
+      <button class="btn" data-dev="win"></button>
+      <button class="btn" data-dev="money">+10 000 ✦ И +500 МОНЕТ</button>
+      <button class="btn wide" data-dev="balls">ВСЕ ШАРИКИ И ФОНЫ</button>
+      <button class="btn warn" data-dev="restore">ВЕРНУТЬ МОЁ СОХРАНЕНИЕ</button>
+      <button class="btn warn" data-dev="wipe">СТЕРЕТЬ ВЕСЬ ПРОГРЕСС</button>
+      <button class="btn" data-dev="off">ВЫКЛЮЧИТЬ РЕЖИМ</button>
+      <button class="btn primary" data-dev="close">ЗАКРЫТЬ</button>
+    </div>
+  </div>
+
   <div id="chance" class="panel slim hidden">
     <canvas class="pv hero" id="chPv"></canvas>
     <div class="title small">ЕЩЁ ШАНС?</div>
@@ -399,6 +428,14 @@ const TIRED_T = 2.6, SNAP_T = 5.5, FAT_REC = 1;
 const PERFECT_R = 60, PERFECT_SPD = 180;
 const METEOR_H = 800;          // endless mode: meteor shower starts at this height
 const BALL_R = 11;
+
+// developer mode (for testing): turned on by tapping the menu title 5 times or by opening the page with ?dev
+// god = nothing kills, speed = game speed, open = every world and level open, fps = frame rate on screen
+const DEV = { on: false, god: false, speed: 1, open: false, fps: false };
+try {
+  DEV.on = /(^|[?&#])dev\b/.test(location.search.slice(1) + '#' + location.hash.slice(1)) || localStorage.getItem('orbita_dev') === '1';
+  if (DEV.on) Object.assign(DEV, JSON.parse(localStorage.getItem('orbita_devopt') || '{}'), { on: true });
+} catch (e) {}
 
 const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -867,7 +904,7 @@ async function loadCloud() {
   } catch (e) { PF.cloudOK = false; }
 }
 function cloudSave() {
-  if (!PF.cloudOK) return;
+  if (!PF.cloudOK || DEV.on) return;                 // testing never reaches the cloud copy
   PF.dirty = true;
   if (!PF.timer) PF.timer = setTimeout(cloudFlush, Math.max(0, PF.next - Date.now()));
 }
@@ -891,7 +928,7 @@ function adEnd(shown) { PF.adOn = false; if (shown) PF.lastAd = Date.now(); hold
 // fullscreen ad between runs; `next` always runs afterwards, whether the ad was shown or not
 function interstitial(next) {
   if (PF.adOn) return;
-  if (!PF.sdk || Date.now() - PF.lastAd < AD_GAP) { next(); return; }
+  if (!PF.sdk || DEV.on || Date.now() - PF.lastAd < AD_GAP) { next(); return; }
   adBegin();
   let opened = false, done = false;
   const fin = shown => { if (done) return; done = true; adEnd(shown || opened); next(); };
@@ -904,6 +941,7 @@ function interstitial(next) {
 // rewarded ad: the reward is given only after the ad window is closed, so the game never runs under the ad
 function rewarded(onReward, onFail) {
   if (PF.adOn) return;
+  if (DEV.on) { onReward(); return; }
   adBegin();
   let got = false, opened = false, done = false;
   const fin = () => { if (done) return; done = true; adEnd(opened || got); if (got) onReward(); else onFail(!opened); };
@@ -956,7 +994,7 @@ const lasers = [], portals = [], winds = [], bumpers = [], wells = [];      // o
 const spikes = [], spinners = [], vortexes = [], arrows = [];
 let camY = 0, voidY = 0, gravityOn = false, maxH = 0, minPY = 0, bonus = 0;
 let combo = 0, comboT = 0, bestCombo = 0, perfN = 0, lastStar = null, biomeIdx = 0;
-let shake = 0, flash = 0, warpT = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
+let shake = 0, flash = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
 let releaseT = -9, grabs = 0, runs = 0, orbChain = 0, lastOrbT = -9, passedBest = false, lastWallT = 0;
 let genX = 0, genY = 0, genPrev = null, deathCause = 'void';
 let R = null, K = {}, rescueLeft = 0, nextRegen = 0, meteorT = 3, lastAttachY = 0, meteorWarned = false;
@@ -1011,7 +1049,7 @@ function reset() {
   }
   camY = P.y - VH * 0.6;
   gravityOn = false; maxH = 0; minPY = 0; bonus = 0; combo = 0; comboT = 0; bestCombo = 0; perfN = 0; lastStar = null;
-  biomeIdx = 0; grabs = 0; shake = 0; flash = 0; warpT = 0; slowT = 0; passedBest = false; happyT = 0;
+  biomeIdx = 0; grabs = 0; shake = 0; flash = 0; slowT = 0; passedBest = false; happyT = 0;
   rescueLeft = K.rescue; nextRegen = K.regen; meteorT = 3; lastAttachY = -150; meteorWarned = false;
   R = newRunStats(); missionDust = 0; rankCoins = 0; chanceUsed = false; lvT = 0;
 }
@@ -1405,7 +1443,7 @@ function worldStars(w) { let s = 0; for (let i = 1; i <= 10; i++) s += lvStars(w
 // Stars are the currency of the levels mode: beating a world's boss lets you OPEN the next world by paying stars.
 // The stars you earned stay on the levels (and in the leaderboard); only the wallet goes down.
 const worldCost = w => w ? 10 + 2 * w : 0;          // world 2: 12 ★ … world 10: 28 ★ (180 of the 270 stars of worlds 1–9)
-const worldOpen = w => w === 0 || save.wopen.includes(w);
+const worldOpen = w => DEV.open || w === 0 || save.wopen.includes(w);
 const bossBeaten = w => !!(save.lv[w * 10] & 1);   // the boss in front of world w (level w*10)
 const starWallet = () => Math.max(0, totalStars() - save.spent);
 const canBuyWorld = w => w > 0 && w < WORLDS.length && !worldOpen(w) && bossBeaten(w) && starWallet() >= worldCost(w);
@@ -1415,7 +1453,7 @@ function buyWorld(w) {
   fanfare(); toast('НОВЫЙ МИР ОТКРЫТ!', WORLDS[w].name + '  −' + worldCost(w) + ' ★');
   return true;
 }
-const levelOpen = n => n >= 1 && n <= LV_COUNT && worldOpen(worldOfLevel(n)) && (n % 10 === 1 || !!(save.lv[n - 1] & 1));
+const levelOpen = n => n >= 1 && n <= LV_COUNT && (DEV.open || (worldOpen(worldOfLevel(n)) && (n % 10 === 1 || !!(save.lv[n - 1] & 1))));
 function nextLevel() {
   let last = 1;
   for (let n = 1; n <= LV_COUNT; n++) { if (!levelOpen(n)) break; last = n; if (!(save.lv[n] & 1)) return n; }
@@ -1545,7 +1583,7 @@ function release() {
   if (s) s.leftT = time;
   P.vx = -Math.sin(P.ang) * P.dir * P.spd * K.launch; P.vy = Math.cos(P.ang) * P.dir * P.spd * K.launch;
   if (s && s.type === 'boost' && !s.dead) {
-    P.vx *= 1.45; P.vy *= 1.45; warpT = 0.7; R.boost++;
+    P.vx *= 1.45; P.vy *= 1.45; R.boost++;
     burst(P.x, P.y, COL.boost, 26, 320, 0.6, 10);
     tone(200, 0.5, 'sawtooth', 0.05, 0, 900); noise(0.4, 0.12, 600, 4000);
     shake = Math.max(shake, 5);
@@ -1573,7 +1611,7 @@ function breakStar(s) {
 
 // returns true if the ball survives touching a mine / meteor
 function hazardHit(o) {
-  if (P.inv > 0) return true;
+  if (P.inv > 0 || DEV.god) return true;
   if (K.eat && P.eatCD <= 0 && !o.solid) {
     P.eatCD = K.eat; o.dead = true;
     burst(o.x, o.y, COL.mine, 30, 300, 0.7, 10); ring(P.x, P.y, [190, 120, 255], 24, 360);
@@ -1628,7 +1666,7 @@ function rescue() {
   if (P.att) release();
   P.vy = -1150; P.vx *= 0.4; P.inv = 1.2;
   if (voidOn()) voidY = P.y + 260; else lastAttachY = P.y;
-  flash = 0.6; shake = 14; warpT = 0.8;
+  flash = 0.6; shake = 14;
   pop(P.x, P.y - 40, 'КАТАПУЛЬТА!', COL.gold, 24, 1.4);
   ring(P.x, P.y, COL.gold, 32, 460);
   tone(160, 0.7, 'sawtooth', 0.07, 0, 1200); noise(0.5, 0.15, 400, 5000);
@@ -1961,11 +1999,11 @@ function contactFx(hit) {
     tone(note(v.good ? 6 : 3), 0.7, 'sine', 0.1, 0, note(v.good ? 16 : 13)); noise(0.6, 0.08, 300, 2000);
     if (v.good) happy(1.2);
   } else if (hit === 'vout') {               // thrown up by a golden vortex
-    pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); warpT = 0.7; shake = Math.max(shake, 6); happy(1.5);
+    pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); shake = Math.max(shake, 6); happy(1.5);
     tone(note(8), 0.5, 'triangle', 0.08, 0, note(20));
     burst(P.x, P.y, COL.vortexG, 18, 300, 0.6, 8);
   } else if (hit.kind === 'arrow') {
-    hit.hit = 1; warpT = Math.max(warpT, 0.35);
+    hit.hit = 1;
     burst(P.x, P.y, COL.arrow, 16, 280, 0.5, 8);
     tone(note(10), 0.3, 'square', 0.04, 0, note(19)); noise(0.25, 0.06, 1500, 5000);
   } else if (hit.kind === 'bumper') {
@@ -2111,11 +2149,11 @@ function step(dt) {
       voidY = Math.min(voidY, minPY + 950);
     }
     if (P.y > voidY - 4) {
-      if (rescueLeft <= 0) { die('void'); return; }
+      if (rescueLeft <= 0 && !DEV.god) { die('void'); return; }
       rescue();
     }
   } else if (gravityOn && !P.att && P.y > lastAttachY + 720) {
-    if (rescueLeft <= 0) { die('fall'); return; }
+    if (rescueLeft <= 0 && !DEV.god) { die('fall'); return; }
     rescue();
   }
 
@@ -2185,19 +2223,17 @@ function updateFx(dt, rdt) {
   compact(pops, keepPop);
   shake *= Math.pow(0.004, rdt); if (shake < 0.2) shake = 0;
   flash = Math.max(0, flash - rdt * 2.2);
-  warpT = Math.max(0, warpT - rdt);
   if (happyT > 0) happyT -= rdt;
 
   if ((state === 'play' || state === 'winning') && !P.dead) {
     trX[trH] = P.x; trY[trH] = P.y; trH = (trH + 1) % TRL; if (trN < TRL) trN++;
-    const sp = Math.hypot(P.vx, P.vy), b = ballDef();
+    const b = ballDef();
     // per-ball trail particles
     if (b.look === 'fire' && Math.random() < 0.8) addPart(P.x + rand(-5, 5), P.y + rand(-5, 5), -P.vx * 0.08 + rand(-30, 30), -P.vy * 0.08 - 40, 0.5, Math.random() < 0.5 ? [255, 200, 80] : [255, 90, 30], 9);
     else if (b.look === 'volt' && Math.random() < 0.25) addPart(P.x, P.y, rand(-120, 120), rand(-120, 120), 0.25, b.c2, 6);
     else if (b.look === 'gold' && Math.random() < 0.35) addPart(P.x + rand(-8, 8), P.y + rand(-8, 8), 0, 0, 0.6, [255, 250, 200], 5);
     else if (b.look === 'rainbow' && Math.random() < 0.5) addPart(P.x, P.y, -P.vx * 0.05, -P.vy * 0.05, 0.5, hueCol(time * 3), 7);
     else if (b.look === 'hole' && Math.random() < 0.4) { const a = rand(0, TAU); addPart(P.x + Math.cos(a) * 40, P.y + Math.sin(a) * 40, -Math.cos(a) * 90, -Math.sin(a) * 90, 0.45, b.c, 6); }
-    else if (sp > 750 && Math.random() < 0.5) addPart(P.x + rand(-4, 4), P.y + rand(-4, 4), -P.vx * 0.05, -P.vy * 0.05, 0.4, sp > 1000 ? COL.gold : ballCols(b, time)[0], 6);
   } else if ((state === 'dying' || state === 'chance') && trN > 0) trN--;
 
   const look = P.att ? 0 : clamp(P.vy * 0.08, -90, 40);
@@ -2366,7 +2402,6 @@ function drawBall(g, x, y, r, b, t, vx, vy, mood, alpha, seed, glowK = 1) {
 const BGP = Array.from({ length: 140 }, (_, i) => ({ x: Math.random(), y: Math.random(), f: [0.04, 0.1, 0.22][i % 3], sz: rand(0.6, 1.2) * [1, 1.6, 2.4][i % 3],
   a: [0.45, 0.7, 0.95][i % 3], ph: rand(0, TAU), sp: rand(0.5, 1.5) }));
 const NEB = [{ x: .2, y: .1, r: .7, k: 0 }, { x: .85, y: .45, r: .6, k: 1 }, { x: .35, y: .8, r: .8, k: 0 }, { x: .7, y: 1.2, r: .6, k: 1 }];
-const WARP = Array.from({ length: 40 }, () => ({ x: Math.random(), o: Math.random(), len: rand(60, 220), sp: rand(1.5, 3) }));
 const CANDY = ['#ff8fc8', '#ffe27a', '#8fe8ff', '#b9a2ff', '#9dffb0', '#ffffff'];
 
 function bgStars(n) {
@@ -2739,19 +2774,6 @@ function drawArrow(a) {
   ctx.restore();
 }
 // first levels: dotted path the ball would take if you let go right now
-const HB = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
-function drawAimHint() {
-  const s = P.att, k = (s.type === 'boost' ? 1.45 : 1) * K.launch;
-  HB.x = P.x; HB.y = P.y; HB.vx = -Math.sin(P.ang) * P.dir * P.spd * k; HB.vy = Math.cos(P.ang) * P.dir * P.spd * k;
-  HB.pcd = 0; HB.acd = 0; HB.vcd = 0; HB.cap = 0;
-  ctx.fillStyle = '#fff';
-  for (let i = 1; i <= 45; i++) {
-    flyMove(HB, 1 / 60, time + i / 60);
-    if (i % 3) continue;
-    ctx.globalAlpha = 0.5 * (1 - i / 50); circle(HB.x, HB.y, 3.2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
 function drawMeteor(m) {
   ctx.globalCompositeOperation = 'lighter';
   const sp = Math.hypot(m.vx, m.vy) || 1;
@@ -2886,7 +2908,6 @@ function render() {
     const nx = -(P.y - P.att.y) / P.L, ny = (P.x - P.att.x) / P.L, wob = Math.sin(time * 30) * (2 + tired * 7);
     ctx.beginPath(); ctx.moveTo(P.att.x, P.att.y); ctx.quadraticCurveTo(mx + nx * wob, my + ny * wob, P.x, P.y); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
-    if (mode === 'levels' && lvN <= 3 && state === 'play') drawAimHint();
   } else if (target && !P.dead) {
     ctx.strokeStyle = rgba(COL[target.type], 0.18); ctx.lineWidth = 1.2; ctx.setLineDash([4, 8]);
     ctx.beginPath(); ctx.moveTo(target.x, target.y); ctx.lineTo(P.x, P.y); ctx.stroke(); ctx.setLineDash([]);
@@ -2965,16 +2986,13 @@ function render() {
     ctx.beginPath(); ctx.moveTo(x, 96); ctx.lineTo(x - 14, 70); ctx.lineTo(x + 14, 70); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '900 14px Unbounded, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', x, 86);
   }
-  if (warpT > 0) {
-    ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.5; ctx.strokeStyle = rgba([255, 230, 160], warpT * 0.45);
-    ctx.beginPath();
-    for (const w of WARP) { const y = ((time * w.sp + w.o) % 1) * (CH + w.len) - w.len; ctx.moveTo(w.x * CW, y); ctx.lineTo(w.x * CW, y + w.len); }
-    ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
-  }
   ctx.drawImage(vigCv, 0, 0, CW, CH);
   if (slowT > 0) { ctx.fillStyle = `rgba(255,80,130,${slowT * 0.25})`; ctx.fillRect(0, 0, CW, CH); }
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.6})`; ctx.fillRect(0, 0, CW, CH); }
+  if (DEV.fps) {
+    ctx.font = '700 12px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#7dffb0';
+    ctx.fillText(`${Math.round(1000 / fpsMs)} fps · ${fpsMs.toFixed(1)} мс · качество ${Q}`, 14, CH - 56);
+  }
 }
 
 // =====================================================================
@@ -3321,7 +3339,7 @@ function tickChance(rdt) {
 //  INPUT
 // =====================================================================
 function press() {
-  if (booting || PF.adOn) return;
+  if (booting || PF.adOn || devOpen()) return;
   if (paused) { setPause(false); return; }
   if (shopOpen() || mapOpen) return;
   if (state === 'menu') { playSelected(); return; }
@@ -3389,7 +3407,7 @@ document.getElementById('modes').addEventListener('click', e => {
 });
 addEventListener('pointerdown', e => {
   const t = e.target;
-  if (t.closest && (t.closest('.panel') || t.closest('#bPause'))) return;
+  if (t.closest && (t.closest('.panel') || t.closest('#bPause') || t.closest('#bDev'))) return;
   if (e.button === 0 || e.pointerType !== 'mouse') { e.preventDefault(); press(); }
 });
 addEventListener('pointerup', unpress);
@@ -3399,6 +3417,7 @@ addEventListener('contextmenu', e => e.preventDefault());
 const HOLD_KEYS = ['Space', 'Enter', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
   if (HOLD_KEYS.includes(e.code)) { e.preventDefault(); if (!e.repeat) press(); }
+  else if (devOpen()) { if (e.code === 'Escape') closeDev(true); }
   else if (e.code === 'KeyM') { initAudio(); setMute(!muted); }
   else if (e.code === 'Escape' && shopOpen()) closeShop();
   else if (e.code === 'Escape' && mapOpen) closeMap();
@@ -3410,6 +3429,95 @@ document.addEventListener('visibilitychange', () => {
   hold('hidden', document.hidden);            // no sound while the tab is in the background (any screen, not only the game)
   if (document.hidden) { if (state === 'play') setPause(true); cloudFlush(); }
 });
+
+// =====================================================================
+//  DEVELOPER MODE
+// =====================================================================
+const devEl = document.getElementById('devp'), bDev = document.getElementById('bDev');
+let devHid = [];
+const devOpen = () => !devEl.classList.contains('hidden');
+function devStore() {
+  try {
+    localStorage.setItem('orbita_dev', DEV.on ? '1' : '0');
+    localStorage.setItem('orbita_devopt', JSON.stringify({ god: DEV.god, speed: DEV.speed, open: DEV.open, fps: DEV.fps }));
+  } catch (e) {}
+}
+// a copy of the save from before testing, so everything can be put back
+function devBackup() { try { if (!localStorage.getItem('orbita_predev')) localStorage.setItem('orbita_predev', JSON.stringify(save)); } catch (e) {} }
+function devButton() {
+  bDev.classList.toggle('hidden', !DEV.on);
+  bDev.textContent = 'DEV' + (DEV.god ? ' ∞' : '') + (DEV.speed !== 1 ? ' ×' + DEV.speed : '');
+}
+function renderDev() {
+  const B = k => devEl.querySelector(`[data-dev="${k}"]`), inRun = state === 'play' || paused;
+  B('god').textContent = 'БЕССМЕРТИЕ: ' + (DEV.god ? 'ВКЛ' : 'ВЫКЛ'); B('god').classList.toggle('on', DEV.god);
+  B('speed').textContent = 'СКОРОСТЬ ИГРЫ ×' + DEV.speed; B('speed').classList.toggle('on', DEV.speed !== 1);
+  B('open').textContent = 'ВСЕ УРОВНИ: ' + (DEV.open ? 'ОТКРЫТЫ' : 'КАК ОБЫЧНО'); B('open').classList.toggle('on', DEV.open);
+  B('fps').textContent = 'FPS НА ЭКРАНЕ: ' + (DEV.fps ? 'ВКЛ' : 'ВЫКЛ'); B('fps').classList.toggle('on', DEV.fps);
+  B('win').textContent = 'ПРОЙТИ УРОВЕНЬ'; B('win').disabled = !(inRun && mode === 'levels');
+}
+function openDev() {
+  if (state === 'play' && !paused) setPause(true);
+  devHid = PANELS.filter(id => !document.getElementById(id).classList.contains('hidden'));
+  for (const id of devHid) document.getElementById(id).classList.add('hidden');
+  renderDev(); devEl.classList.remove('hidden');
+}
+function closeDev(resume) {
+  devEl.classList.add('hidden');
+  for (const id of devHid) document.getElementById(id).classList.remove('hidden');
+  devHid = [];
+  if (mapOpen) renderMap();
+  if (state === 'menu') refreshMenu(); else refreshWallet();
+  if (resume && paused) setPause(false);
+}
+function devSet(on) {
+  DEV.on = on;
+  if (on) devBackup();
+  else { DEV.god = false; DEV.speed = 1; DEV.open = false; DEV.fps = false; try { localStorage.removeItem('orbita_predev'); } catch (e) {} }
+  devStore(); devButton();
+}
+// tapping the title 5 times quickly switches the mode on / off
+let titleTaps = [];
+document.getElementById('mTitle').addEventListener('click', () => {
+  const t = performance.now();
+  titleTaps = titleTaps.filter(x => t - x < 3000); titleTaps.push(t);
+  if (titleTaps.length < 5) return;
+  titleTaps = [];
+  devSet(!DEV.on);
+  toast('РЕЖИМ РАЗРАБОТЧИКА', DEV.on ? 'Включён — кнопка DEV внизу слева' : 'Выключен');
+});
+bDev.addEventListener('click', () => { if (devOpen()) closeDev(true); else openDev(); });
+devEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-dev]'); if (!b || b.disabled) return;
+  const k = b.dataset.dev;
+  if (k === 'god') DEV.god = !DEV.god;
+  else if (k === 'speed') DEV.speed = DEV.speed === 1 ? 0.5 : DEV.speed === 0.5 ? 0.25 : 1;
+  else if (k === 'open') DEV.open = !DEV.open;
+  else if (k === 'fps') DEV.fps = !DEV.fps;
+  else if (k === 'money') { save.dust += 10000; save.coins += 500; persist(); toast('ГОТОВО', '+10 000 ✦ и +500 монет'); }
+  else if (k === 'balls') {
+    for (const x of BALLS) if (!save.balls[x.id]) save.balls[x.id] = newBallSave();
+    for (const x of THEMES) if (!save.themes.includes(x.id)) save.themes.push(x.id);
+    persist(); toast('ГОТОВО', 'Все шарики и фоны твои');
+  } else if (k === 'win') { closeDev(true); if (state === 'play') winLevel(); return; }
+  else if (k === 'restore') {
+    let raw = null; try { raw = localStorage.getItem('orbita_predev'); } catch (e) {}
+    if (!raw) { toast('НЕЧЕГО ВОЗВРАЩАТЬ', 'Копии сохранения нет'); return; }
+    if (!confirm('Вернуть сохранение, каким оно было до включения режима разработчика?')) return;
+    save = migrateSave(JSON.parse(raw)); persist(); refillMissions();
+    devHid = []; closeDev(false); if (paused) setPause(false); showMenu(); toast('ГОТОВО', 'Сохранение возвращено');
+    return;
+  } else if (k === 'wipe') {
+    if (!confirm('Стереть весь прогресс и начать игру с нуля?')) return;
+    save = defaultSave(); best.classic = { score: 0, h: 0, combo: 0 }; saveBest(); persist(); refillMissions();
+    devHid = []; closeDev(false); if (paused) setPause(false); showMenu(); toast('ГОТОВО', 'Прогресс стёрт');
+    return;
+  } else if (k === 'off') { devSet(false); closeDev(true); toast('РЕЖИМ РАЗРАБОТЧИКА', 'Выключен'); return; }
+  else if (k === 'close') { closeDev(true); return; }
+  devStore(); devButton(); renderDev();
+});
+if (DEV.on) devBackup();
+devButton();
 
 // =====================================================================
 //  MAIN LOOP (+ automatic quality)
@@ -3433,9 +3541,10 @@ boot().catch(() => {}).then(() => {
   }
   platformReady();
 });
-let last = performance.now(), frameEMA = 16, slowFor = 0, playTime = 0;
+let fpsMs = 16.7, last = performance.now(), frameEMA = 16, slowFor = 0, playTime = 0;
 function frame(now) {
   const raw = now - last;
+  if (raw > 0 && raw < 1000) fpsMs = fpsMs * 0.93 + raw * 0.07;
   const rdt = Math.max(0, Math.min(0.05, raw / 1000)); last = now;
   if (!paused) {
     // auto-quality: if frames stay slow for 2 s of play, drop one quality level
@@ -3447,7 +3556,7 @@ function frame(now) {
       if (slowFor > 2 && Q > 0) { Q--; slowFor = 0; frameEMA = 16; resize(); }
     }
     if (slowT > 0) slowT = Math.max(0, slowT - rdt);
-    const ts = state === 'dying' ? 0.25 : slowT > 0 ? 0.4 : 1;
+    const ts = (state === 'dying' ? 0.25 : slowT > 0 ? 0.4 : 1) * DEV.speed;
     const dt = rdt * ts;
     time += dt;
     if (state === 'play') {
