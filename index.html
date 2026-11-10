@@ -393,6 +393,10 @@ const TAU = Math.PI * 2;
 const W = 720;                 // logical playfield width
 const GRAB = 210, G = 620, ORBIT_ACC = 230, MAXSPD = 1050, MAXFREE = 1500;
 const COMBO_TIME = 3.2, CRUMBLE_T = 1.25, BIOME_LEN = 400;
+// star fatigue: a star speeds the ball up only for TIRED_T s, then dims and lets go at SNAP_T (rests FAT_REC s per s)
+const TIRED_T = 2.6, SNAP_T = 5.5, FAT_REC = 1;
+// perfect throw: the flight passes within PERFECT_R of the next star's centre -> extra spin speed on grabbing it
+const PERFECT_R = 60, PERFECT_SPD = 180;
 const METEOR_H = 800;          // endless mode: meteor shower starts at this height
 const BALL_R = 11;
 
@@ -584,6 +588,7 @@ const MT = {
   near:    { t: n => `Пролети на волоске ×${n} за забег`,    n: t => 2 + t,                    run: R => R.near },
   boost:   { t: n => `Золотые звёзды ×${n} за забег`,        n: t => 3 + t,                    run: R => R.boost },
   crumble: { t: n => `Рассыпающиеся звёзды ×${n} за забег`,  n: t => 3 + t,                    run: R => R.crumble },
+  perf:    { t: n => `Идеальные броски ×${n} за забег`,      n: t => 2 + t,                    run: R => R.perf },
   zone:    { t: n => `Доберись до зоны ${n}`,                n: t => 2 + Math.floor(t / 2),    run: R => R.zone },
   coins:   { t: n => `Подбери монеты ×${n} за забег`,        n: t => 1 + Math.floor(t / 3),    run: R => R.coins },
   total:   { t: n => `Собери ${n} искр (за все забеги)`,     n: t => 100 + 60 * t, cum: 'orbs', run: R => R.orbs },
@@ -950,7 +955,7 @@ const stars = [], mines = [], orbs = [], parts = [], pops = [], meteors = [], wa
 const lasers = [], portals = [], winds = [], bumpers = [], wells = [];      // obstacles of the levels mode
 const spikes = [], spinners = [], vortexes = [], arrows = [];
 let camY = 0, voidY = 0, gravityOn = false, maxH = 0, minPY = 0, bonus = 0;
-let combo = 0, comboT = 0, bestCombo = 0, lastStar = null, biomeIdx = 0;
+let combo = 0, comboT = 0, bestCombo = 0, perfN = 0, lastStar = null, biomeIdx = 0;
 let shake = 0, flash = 0, warpT = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
 let releaseT = -9, grabs = 0, runs = 0, orbChain = 0, lastOrbT = -9, passedBest = false, lastWallT = 0;
 let genX = 0, genY = 0, genPrev = null, deathCause = 'void';
@@ -983,17 +988,17 @@ function calcK() {
     launch: f.launch || 1, rescue: f.rescue || 0, bouncy: !!f.bouncy, phase: f.phase || 0, eat: f.eat || 0, shield: !!f.shield, regen: f.regen || 0,
   };
 }
-function newRunStats() { return { h: 0, orbs: 0, combo: 0, near: 0, boost: 0, crumble: 0, zone: 1, coins: 0, gems: 0, lvwin: 0, played: 0, final: false }; }
+function newRunStats() { return { h: 0, orbs: 0, combo: 0, near: 0, perf: 0, boost: 0, crumble: 0, zone: 1, coins: 0, gems: 0, lvwin: 0, played: 0, final: false }; }
 
 function newStar(x, y, type) {
-  return { x, y, bx: x, type, r: rand(11, 15), ph: rand(0, TAU), attT: 0, dead: false, amp: 0, ms: 0, visited: false,
+  return { x, y, bx: x, type, r: rand(11, 15), ph: rand(0, TAU), attT: 0, fat: 0, leftT: 0, dead: false, amp: 0, ms: 0, visited: false,
     cracks: Array.from({ length: 7 }, () => ({ a: rand(0, TAU), l: rand(0.8, 1.8), b: rand(-0.6, 0.6) })) };
 }
 
 function reset() {
   mode = save.mode; calcK();
   P = { x: W / 2, y: 0, floatY: 0, vx: 0, vy: 0, att: null, ang: 0, L: 0, dir: 1, spd: 0,
-    shield: K.shield, inv: 0, dead: false, phaseCD: 0, eatCD: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
+    shield: K.shield, inv: 0, dead: false, perf: null, phaseCD: 0, eatCD: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
   for (const a of [stars, mines, orbs, parts, pops, meteors, warns, lasers, portals, winds, bumpers, wells, spikes, spinners, vortexes, arrows]) a.length = 0;
   trN = 0; time = 0; releaseT = -9; lastOrbT = -9; lastWallT = -9;     // level motion is timed from the start of the run
   if (mode === 'levels') loadLevel(lvN);
@@ -1005,7 +1010,7 @@ function reset() {
     voidY = P.y + VH * 0.42 + 60;
   }
   camY = P.y - VH * 0.6;
-  gravityOn = false; maxH = 0; minPY = 0; bonus = 0; combo = 0; comboT = 0; bestCombo = 0; lastStar = null;
+  gravityOn = false; maxH = 0; minPY = 0; bonus = 0; combo = 0; comboT = 0; bestCombo = 0; perfN = 0; lastStar = null;
   biomeIdx = 0; grabs = 0; shake = 0; flash = 0; warpT = 0; slowT = 0; passedBest = false; happyT = 0;
   rescueLeft = K.rescue; nextRegen = K.regen; meteorT = 3; lastAttachY = -150; meteorWarned = false;
   R = newRunStats(); missionDust = 0; rankCoins = 0; chanceUsed = false; lvT = 0;
@@ -1103,7 +1108,7 @@ function mulberry32(a) {
 }
 const LV_SEED = {};          // level → another seed, for a level the checker found unfair
 // par time of every level in seconds (third star): bot time × 1.5 + 3 s, printed by tools/levels-check.js
-const LV_PAR = '8,12,19,17,16,15,17,19,31,28,11,15,28,19,32,23,25,28,35,44,21,17,19,26,31,31,31,26,42,39,16,20,24,44,39,33,37,42,35,59,18,29,21,28,29,36,30,32,35,41,26,19,22,26,31,30,33,38,39,42,17,20,22,24,47,23,32,41,34,45,22,24,24,25,23,26,29,30,43,42,23,25,19,29,30,37,35,34,43,42,27,24,31,33,46,32,35,46,39,43';
+const LV_PAR = '8,12,18,17,16,15,14,19,27,26,11,13,28,19,33,23,25,28,35,45,21,17,20,23,31,31,28,28,42,39,16,20,24,31,39,33,31,43,39,52,18,29,18,28,29,32,30,35,38,43,25,19,24,26,32,30,32,38,39,42,17,20,24,23,47,23,32,40,34,45,22,24,23,25,23,26,29,30,43,37,23,25,22,29,30,37,35,33,35,42,27,24,32,33,39,32,33,46,41,43';
 const SEG_KINDS = ['plain', 'mine', 'laser', 'bumper', 'portal', 'wind', 'blink', 'well', 'spikes', 'spinner', 'vortex', 'vortexG', 'arrow'];
 const worldOfLevel = n => (n - 1) / 10 | 0;
 // the first level where each thing appears (for the "new!" hint)
@@ -1459,6 +1464,28 @@ const starOn = (s, t) => s.type !== 'blink' || ((t + s.ph) % s.per) < s.per * s.
 const laserOn = (l, t) => !l.per || ((t + l.ph) % l.per) < l.per * l.duty;
 const laserX = (l, t) => l.cx + (l.amp ? Math.sin(t * l.ms + l.mph) * l.amp : 0);
 const bumperX = (u, t) => u.bx + (u.amp ? Math.sin(t * u.ms + u.ph) * u.amp : 0);
+const starX = (s, t) => s.type === 'moving' ? s.bx + Math.sin(t * s.ms + s.ph) * s.amp : s.x;
+const starFat = (s, t) => Math.max(0, s.fat - (t - s.leftT) * FAT_REC);     // fatigue of a star nobody hangs on
+
+// the star a throw from (x, y) with speed (vx, vy) at time t would pass right through (within PERFECT_R
+// of its centre), or null. Only stars above the one we leave count. The bot calls this too.
+const PB = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
+function perfectAim(x, y, vx, vy, t, s0) {
+  PB.x = x; PB.y = y; PB.vx = vx; PB.vy = vy; PB.pcd = 0; PB.acd = 0; PB.vcd = 0; PB.cap = 0;
+  const top = s0 ? s0.y - 40 : y;
+  for (let i = 1; i <= 150; i++) {
+    const tt = t + i / 60;
+    if (flyMove(PB, 1 / 60, tt) === 'spike') return null;
+    if (PB.cap > 0) return null;                         // a vortex takes over the flight
+    if (PB.y > top + 500) return null;
+    for (let j = 0; j < stars.length; j++) {
+      const s = stars[j];
+      if (s.dead || s === s0 || s.y > top) continue;
+      if (Math.abs(PB.y - s.y) < PERFECT_R && Math.hypot(PB.x - starX(s, tt), PB.y - s.y) < PERFECT_R) return s;
+    }
+  }
+  return null;
+}
 
 function findTarget() {
   let bestS = null, bd = K.grab;
@@ -1480,6 +1507,9 @@ function attach(s) {
   if (Math.abs(cross) < 1e-3 * d) P.dir = Math.cos(P.ang) > 0 ? -1 : 1;
   else P.dir = cross > 0 ? 1 : -1;
   P.spd = clamp(Math.hypot(P.vx, P.vy) * 0.95, 380, MAXSPD);
+  const perfect = s === P.perf && !s.visited; P.perf = null;
+  if (perfect) P.spd = Math.min(P.spd + PERFECT_SPD, MAXSPD);
+  s.fat = starFat(s, time);
   s.attT = 0; gravityOn = true; grabs++; lastAttachY = s.y; P.pcd = 0; P.acd = 0; P.vcd = 0;
   if (!s.visited) {
     s.visited = true;
@@ -1489,6 +1519,15 @@ function attach(s) {
     const pts = 10 * mult();
     bonus += pts;
     pop(s.x, s.y - 34, '+' + pts, COL.gold, 16 + Math.min(combo, 12), 0.9);
+    if (perfect) {
+      perfN++; R.perf++;
+      const extra = 15 * mult() * Math.min(perfN, 5);
+      bonus += extra;
+      pop(s.x, s.y - 64, perfN > 1 ? 'ИДЕАЛЬНО ×' + perfN : 'ИДЕАЛЬНО!', COL.white, 24 + Math.min(perfN, 5) * 2, 1.2);
+      ring(s.x, s.y, COL.white, 22, 380); ring(s.x, s.y, COL.gold, 14, 240);
+      [0, 7, 12].forEach((k, i) => tone(note(14 + k + Math.min(perfN, 6), 220), 0.5, 'sine', 0.07, i * 0.045));
+      flash = Math.max(flash, 0.18); shake = Math.max(shake, 4); happy(1);
+    } else perfN = 0;
     const f = note(Math.min(combo, 22) + 4, 220);
     tone(f, 0.55, 'triangle', 0.17); tone(f * 2, 0.3, 'sine', 0.05);
     if (combo % 5 === 0) {
@@ -1503,6 +1542,7 @@ function attach(s) {
 
 function release() {
   const s = P.att; P.att = null; lastStar = s; releaseT = time;
+  if (s) s.leftT = time;
   P.vx = -Math.sin(P.ang) * P.dir * P.spd * K.launch; P.vy = Math.cos(P.ang) * P.dir * P.spd * K.launch;
   if (s && s.type === 'boost' && !s.dead) {
     P.vx *= 1.45; P.vy *= 1.45; warpT = 0.7; R.boost++;
@@ -1510,6 +1550,16 @@ function release() {
     tone(200, 0.5, 'sawtooth', 0.05, 0, 900); noise(0.4, 0.12, 600, 4000);
     shake = Math.max(shake, 5);
   } else noise(0.22, 0.05 + P.spd / 25000, 700, 2600);
+  P.perf = perfectAim(P.x, P.y, P.vx, P.vy, time, s);
+}
+
+// hung on a star too long: it lets go; the button has to be pressed again to grab the next star
+function snapOff() {
+  const s = P.att;
+  release(); holding = false;
+  pop(s.x, s.y - 40, 'СОРВАЛСЯ!', [255, 200, 200], 20, 1.1);
+  burst(P.x, P.y, COL[s.type], 14, 220, 0.5, 7);
+  tone(note(6, 220), 0.3, 'triangle', 0.08, 0, note(1, 220)); noise(0.15, 0.08, 1800, 600);
 }
 
 function breakStar(s) {
@@ -1594,7 +1644,7 @@ function revive() {
   lastAttachY = P.floatY - 120;
   minPY = Math.max(minPY, P.floatY);          // the void is held relative to this point, the record height stays
   voidY = voidOn() ? P.floatY + VH * 0.42 + 60 : 1e9;
-  gravityOn = false; trN = 0; combo = 0; comboT = 0; slowT = 0;
+  gravityOn = false; trN = 0; combo = 0; comboT = 0; slowT = 0; perfN = 0; P.perf = null;
   P.shield = true; P.inv = 1.5;
   meteors.length = 0; warns.length = 0; meteorT = 3;
   for (const m of mines) {
@@ -1932,12 +1982,14 @@ function step(dt) {
   updateWorld(dt);
 
   if (P.att && (!holding || P.att.dead || !starOn(P.att, time))) release();
+  else if (P.att && P.att.fat > SNAP_T) snapOff();
   if (!P.att && holding && !(P.cap > 0)) { const t = findTarget(); if (t) attach(t); }
 
   if (P.att) {
     const s = P.att;
-    s.attT += dt;
-    P.spd = Math.min(P.spd + ORBIT_ACC * K.acc * dt, MAXSPD);
+    s.attT += dt; s.fat += dt;
+    if (s.fat < TIRED_T) P.spd = Math.min(P.spd + ORBIT_ACC * K.acc * dt, MAXSPD);
+    else if (s.fat - dt < TIRED_T) { pop(s.x, s.y - 40, 'УСТАЛА!', [200, 210, 230], 18, 1); tone(note(3, 220), 0.4, 'sine', 0.05, 0, note(0, 220)); }
     const tl = clamp(P.L, 70, 150);
     P.L += (tl - P.L) * Math.min(1, dt * (P.L > 150 ? 9 : 4));     // a long rope pulls in quickly, so a far grab doesn't swing wide
     P.ang += P.dir * P.spd / P.L * dt;
@@ -2438,6 +2490,11 @@ function drawStar(s, target) {
   }
   const pulse = 1 + Math.sin(time * 3 + s.ph) * 0.08;
   if (s.type === 'crumble' && P.att === s) { k = s.attT / CRUMBLE_T; x += rand(-1, 1) * k * 3; y += rand(-1, 1) * k * 3; }
+  const tk = s.fat > TIRED_T ? clamp(((P.att === s ? s.fat : starFat(s, time)) - TIRED_T) / (SNAP_T - TIRED_T), 0, 1) : 0;
+  if (tk > 0) {                              // tired: dims, and in the last moments trembles
+    a *= 1 - 0.6 * tk;
+    if (tk > 0.6 && P.att === s) { x += rand(-1, 1) * (tk - 0.6) * 6; y += rand(-1, 1) * (tk - 0.6) * 6; }
+  }
   ctx.globalCompositeOperation = 'lighter';
   glow(c, x, y, 75 * pulse, 0.5 * a); glow(c, x, y, 28, 0.9 * a);
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
@@ -2458,6 +2515,10 @@ function drawStar(s, target) {
   } else if (s.type === 'moving') {
     ctx.strokeStyle = rgba(c, 0.18); ctx.lineWidth = 2; ctx.setLineDash([3, 9]);
     ctx.beginPath(); ctx.moveTo(s.bx - s.amp, s.y); ctx.lineTo(s.bx + s.amp, s.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (tk > 0 && P.att === s) {               // how long until it lets go: a shrinking ring
+    ctx.strokeStyle = tk > 0.7 && Math.sin(time * 24) > 0 ? 'rgba(255,140,140,0.9)' : 'rgba(255,255,255,0.75)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x, y, s.r + 16, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - tk)); ctx.stroke();
   }
   if (target) {
     ctx.strokeStyle = rgba(c, 0.22 + 0.1 * Math.sin(time * 6)); ctx.lineWidth = 1.5; ctx.setLineDash([6, 10]);
@@ -2821,7 +2882,8 @@ function render() {
     ctx.beginPath(); ctx.moveTo(P.att.x, P.att.y); ctx.lineTo(P.x, P.y); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.6;
     const mx = (P.att.x + P.x) / 2, my = (P.att.y + P.y) / 2;
-    const nx = -(P.y - P.att.y) / P.L, ny = (P.x - P.att.x) / P.L, wob = Math.sin(time * 30) * 2;
+    const tired = clamp((P.att.fat - TIRED_T) / (SNAP_T - TIRED_T), 0, 1);
+    const nx = -(P.y - P.att.y) / P.L, ny = (P.x - P.att.x) / P.L, wob = Math.sin(time * 30) * (2 + tired * 7);
     ctx.beginPath(); ctx.moveTo(P.att.x, P.att.y); ctx.quadraticCurveTo(mx + nx * wob, my + ny * wob, P.x, P.y); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
     if (mode === 'levels' && lvN <= 3 && state === 'play') drawAimHint();

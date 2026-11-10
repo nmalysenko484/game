@@ -20,15 +20,18 @@ const BOT = `
 (function () {
   const DT = 1 / 120, SIM_DT = DT, SIM_STEPS = 300;      // same step as the game run below: the prediction is exact
   const B = { x: 0, y: 0, vx: 0, vy: 0, pcd: 0, acd: 0, vcd: 0, cap: 0, cv: 0, ca: 0 };
-  const starX = (s, t) => s.type === 'moving' ? s.bx + Math.sin(t * s.ms + s.ph) * s.amp : s.x;
   // the first moments after grabbing star s at time t (as attach() + step() do it): does the swing hit something?
-  function swingSafe(s, t, dt0) {
+  // perfect: the throw was a perfect one at this star (attach() adds PERFECT_SPD)
+  function swingSafe(s, t, dt0, perfect) {
     const sx = starX(s, t), dx = B.x - sx, dy = B.y - s.y, d = Math.hypot(dx, dy) || 1;
     let L = Math.max(d, 50), ang = Math.atan2(dy, dx), spd = clamp(Math.hypot(B.vx, B.vy) * 0.95, 380, MAXSPD);
+    if (perfect) spd = Math.min(spd + PERFECT_SPD, MAXSPD);
+    let fat = starFat(s, t);
     const cross = dx * B.vy - dy * B.vx, dir = cross > 0 ? 1 : -1;
     for (let j = 1; j <= 84; j++) {
       const tt = t + j * SIM_DT, dtt = dt0 + j * SIM_DT;
-      spd = Math.min(spd + ORBIT_ACC * K.acc * SIM_DT, MAXSPD);
+      fat += SIM_DT;
+      if (fat < TIRED_T) spd = Math.min(spd + ORBIT_ACC * K.acc * SIM_DT, MAXSPD);
       L += (clamp(L, 70, 150) - L) * Math.min(1, SIM_DT * (L > 150 ? 9 : 4));
       ang += dir * spd / L * SIM_DT;
       const x = starX(s, tt) + Math.cos(ang) * L, y = s.y + Math.sin(ang) * L;
@@ -47,8 +50,9 @@ const BOT = `
   }
   // returns { ok, star, win, gems } for letting go right now
   function tryRelease() {
-    const s0 = P.att, k = s0.type === 'boost' && !s0.dead ? 1.45 : 1;
+    const s0 = P.att, k = (s0.type === 'boost' && !s0.dead ? 1.45 : 1) * K.launch;
     B.x = P.x; B.y = P.y; B.vx = -Math.sin(P.ang) * P.dir * P.spd * k; B.vy = Math.cos(P.ang) * P.dir * P.spd * k;
+    const perf = perfectAim(B.x, B.y, B.vx, B.vy, time, s0);       // as release() decides it
     B.pcd = 0; B.acd = 0; B.vcd = 0; B.cap = 0;
     let gems = 0;
     const gemHit = new Set();
@@ -90,8 +94,8 @@ const BOT = `
       if (best && best.y < s0.y - 40) {
         // don't grab a star that switches off right away
         if (best.type === 'blink' && ((t + best.ph) % best.per) > best.per * best.duty - 0.6) continue;
-        if (!swingSafe(best, t, dtt)) return { ok: false };
-        return { ok: true, star: best, gems, win: false };
+        if (!swingSafe(best, t, dtt, best === perf && !best.visited)) return { ok: false };
+        return { ok: true, star: best, gems, win: false, perf: best === perf };
       }
     }
     return { ok: false };
