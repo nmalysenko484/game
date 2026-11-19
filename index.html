@@ -431,9 +431,10 @@ const BALL_R = 11;
 
 // developer mode (for testing): turned on by tapping the menu title 5 times or by opening the page with ?dev
 // god = nothing kills, speed = game speed, open = every world and level open, fps = frame rate on screen
+const DEV_ALLOWED = true;      // the Yandex build (tools/build-yandex.sh) turns this off: players never get the developer mode
 const DEV = { on: false, god: false, speed: 1, open: false, fps: false };
 try {
-  DEV.on = /(^|[?&#])dev\b/.test(location.search.slice(1) + '#' + location.hash.slice(1)) || localStorage.getItem('orbita_dev') === '1';
+  DEV.on = DEV_ALLOWED && (/(^|[?&#])dev\b/.test(location.search.slice(1) + '#' + location.hash.slice(1)) || localStorage.getItem('orbita_dev') === '1');
   if (DEV.on) Object.assign(DEV, JSON.parse(localStorage.getItem('orbita_devopt') || '{}'), { on: true });
 } catch (e) {}
 
@@ -891,7 +892,7 @@ async function boot() {
 // cloud save: take whichever copy is newer; if the cloud can't be read, never write to it (it may hold real progress)
 async function loadCloud() {
   try {
-    PF.player = await withTimeout(PF.sdk.getPlayer(), 6000);
+    PF.player = await withTimeout(PF.sdk.getPlayer({ scopes: false }), 6000);    // no request for the name / avatar
     const d = await withTimeout(PF.player.getData(), 6000) || {};
     const cloudNewer = d.save && typeof d.save === 'object' && (+d.save.t || 0) > (save.t || 0);
     if (cloudNewer) {
@@ -994,7 +995,7 @@ const lasers = [], portals = [], winds = [], bumpers = [], wells = [];      // o
 const spikes = [], spinners = [], vortexes = [], arrows = [];
 let camY = 0, voidY = 0, gravityOn = false, maxH = 0, minPY = 0, bonus = 0;
 let combo = 0, comboT = 0, bestCombo = 0, perfN = 0, lastStar = null, biomeIdx = 0;
-let shake = 0, flash = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
+let shake = 0, flash = 0, warpT = 0, slowT = 0, dyingT = 0, deadAt = 0, time = 0;
 let releaseT = -9, grabs = 0, runs = 0, orbChain = 0, lastOrbT = -9, passedBest = false, lastWallT = 0;
 let genX = 0, genY = 0, genPrev = null, deathCause = 'void';
 let R = null, K = {}, rescueLeft = 0, nextRegen = 0, meteorT = 3, lastAttachY = 0, meteorWarned = false;
@@ -1049,7 +1050,7 @@ function reset() {
   }
   camY = P.y - VH * 0.6;
   gravityOn = false; maxH = 0; minPY = 0; bonus = 0; combo = 0; comboT = 0; bestCombo = 0; perfN = 0; lastStar = null;
-  biomeIdx = 0; grabs = 0; shake = 0; flash = 0; slowT = 0; passedBest = false; happyT = 0;
+  biomeIdx = 0; grabs = 0; shake = 0; flash = 0; warpT = 0; slowT = 0; passedBest = false; happyT = 0;
   rescueLeft = K.rescue; nextRegen = K.regen; meteorT = 3; lastAttachY = -150; meteorWarned = false;
   R = newRunStats(); missionDust = 0; rankCoins = 0; chanceUsed = false; lvT = 0;
 }
@@ -1583,7 +1584,7 @@ function release() {
   if (s) s.leftT = time;
   P.vx = -Math.sin(P.ang) * P.dir * P.spd * K.launch; P.vy = Math.cos(P.ang) * P.dir * P.spd * K.launch;
   if (s && s.type === 'boost' && !s.dead) {
-    P.vx *= 1.45; P.vy *= 1.45; R.boost++;
+    P.vx *= 1.45; P.vy *= 1.45; warpT = 0.7; R.boost++;
     burst(P.x, P.y, COL.boost, 26, 320, 0.6, 10);
     tone(200, 0.5, 'sawtooth', 0.05, 0, 900); noise(0.4, 0.12, 600, 4000);
     shake = Math.max(shake, 5);
@@ -1666,7 +1667,7 @@ function rescue() {
   if (P.att) release();
   P.vy = -1150; P.vx *= 0.4; P.inv = 1.2;
   if (voidOn()) voidY = P.y + 260; else lastAttachY = P.y;
-  flash = 0.6; shake = 14;
+  flash = 0.6; shake = 14; warpT = 0.8;
   pop(P.x, P.y - 40, 'КАТАПУЛЬТА!', COL.gold, 24, 1.4);
   ring(P.x, P.y, COL.gold, 32, 460);
   tone(160, 0.7, 'sawtooth', 0.07, 0, 1200); noise(0.5, 0.15, 400, 5000);
@@ -1999,11 +2000,11 @@ function contactFx(hit) {
     tone(note(v.good ? 6 : 3), 0.7, 'sine', 0.1, 0, note(v.good ? 16 : 13)); noise(0.6, 0.08, 300, 2000);
     if (v.good) happy(1.2);
   } else if (hit === 'vout') {               // thrown up by a golden vortex
-    pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); shake = Math.max(shake, 6); happy(1.5);
+    pop(P.x, P.y - 30, 'ВЖУХ!', COL.vortexG, 26, 1.2); warpT = 0.7; shake = Math.max(shake, 6); happy(1.5);
     tone(note(8), 0.5, 'triangle', 0.08, 0, note(20));
     burst(P.x, P.y, COL.vortexG, 18, 300, 0.6, 8);
   } else if (hit.kind === 'arrow') {
-    hit.hit = 1;
+    hit.hit = 1; warpT = Math.max(warpT, 0.35);
     burst(P.x, P.y, COL.arrow, 16, 280, 0.5, 8);
     tone(note(10), 0.3, 'square', 0.04, 0, note(19)); noise(0.25, 0.06, 1500, 5000);
   } else if (hit.kind === 'bumper') {
@@ -2223,17 +2224,19 @@ function updateFx(dt, rdt) {
   compact(pops, keepPop);
   shake *= Math.pow(0.004, rdt); if (shake < 0.2) shake = 0;
   flash = Math.max(0, flash - rdt * 2.2);
+  warpT = Math.max(0, warpT - rdt);
   if (happyT > 0) happyT -= rdt;
 
   if ((state === 'play' || state === 'winning') && !P.dead) {
     trX[trH] = P.x; trY[trH] = P.y; trH = (trH + 1) % TRL; if (trN < TRL) trN++;
-    const b = ballDef();
+    const sp = Math.hypot(P.vx, P.vy), b = ballDef();
     // per-ball trail particles
     if (b.look === 'fire' && Math.random() < 0.8) addPart(P.x + rand(-5, 5), P.y + rand(-5, 5), -P.vx * 0.08 + rand(-30, 30), -P.vy * 0.08 - 40, 0.5, Math.random() < 0.5 ? [255, 200, 80] : [255, 90, 30], 9);
     else if (b.look === 'volt' && Math.random() < 0.25) addPart(P.x, P.y, rand(-120, 120), rand(-120, 120), 0.25, b.c2, 6);
     else if (b.look === 'gold' && Math.random() < 0.35) addPart(P.x + rand(-8, 8), P.y + rand(-8, 8), 0, 0, 0.6, [255, 250, 200], 5);
     else if (b.look === 'rainbow' && Math.random() < 0.5) addPart(P.x, P.y, -P.vx * 0.05, -P.vy * 0.05, 0.5, hueCol(time * 3), 7);
     else if (b.look === 'hole' && Math.random() < 0.4) { const a = rand(0, TAU); addPart(P.x + Math.cos(a) * 40, P.y + Math.sin(a) * 40, -Math.cos(a) * 90, -Math.sin(a) * 90, 0.45, b.c, 6); }
+    else if (sp > 750 && Math.random() < 0.5) addPart(P.x + rand(-4, 4), P.y + rand(-4, 4), -P.vx * 0.05, -P.vy * 0.05, 0.4, sp > 1000 ? COL.gold : ballCols(b, time)[0], 6);
   } else if ((state === 'dying' || state === 'chance') && trN > 0) trN--;
 
   const look = P.att ? 0 : clamp(P.vy * 0.08, -90, 40);
@@ -2827,6 +2830,7 @@ function ballMood() {
   return 'normal';
 }
 
+const WARP = Array.from({ length: 40 }, () => ({ x: Math.random(), o: Math.random(), len: rand(60, 220), sp: rand(1.5, 3) }));
 function render() {
   drawBackground();
   const sx = (Math.random() - 0.5) * shake, sy = (Math.random() - 0.5) * shake;
@@ -2985,6 +2989,13 @@ function render() {
     ctx.fillStyle = `rgba(255,70,60,${a})`;
     ctx.beginPath(); ctx.moveTo(x, 96); ctx.lineTo(x - 14, 70); ctx.lineTo(x + 14, 70); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '900 14px Unbounded, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', x, 86);
+  }
+  if (warpT > 0) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.5; ctx.strokeStyle = rgba([255, 230, 160], warpT * 0.45);
+    ctx.beginPath();
+    for (const w of WARP) { const y = ((time * w.sp + w.o) % 1) * (CH + w.len) - w.len; ctx.moveTo(w.x * CW, y); ctx.lineTo(w.x * CW, y + w.len); }
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
   }
   ctx.drawImage(vigCv, 0, 0, CW, CH);
   if (slowT > 0) { ctx.fillStyle = `rgba(255,80,130,${slowT * 0.25})`; ctx.fillRect(0, 0, CW, CH); }
@@ -3479,6 +3490,7 @@ function devSet(on) {
 // tapping the title 5 times quickly switches the mode on / off
 let titleTaps = [];
 document.getElementById('mTitle').addEventListener('click', () => {
+  if (!DEV_ALLOWED) return;
   const t = performance.now();
   titleTaps = titleTaps.filter(x => t - x < 3000); titleTaps.push(t);
   if (titleTaps.length < 5) return;
@@ -3546,7 +3558,7 @@ function frame(now) {
   const raw = now - last;
   if (raw > 0 && raw < 1000) fpsMs = fpsMs * 0.93 + raw * 0.07;
   const rdt = Math.max(0, Math.min(0.05, raw / 1000)); last = now;
-  if (!paused) {
+  if (!paused && !PF.adOn) {                  // the whole game stands still while an ad is on screen
     // auto-quality: if frames stay slow for 2 s of play, drop one quality level
     // (very slow frames count too, capped at 100 ms; only multi-second gaps like a tab switch are ignored)
     if (state === 'play' && raw > 0 && raw < 1000 && !document.hidden) {
